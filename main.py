@@ -44,15 +44,23 @@ ship4 = [(4,2), (4,3), (4,4)]
 app.board = [ship1] + [ship2] + [ship3] + [ship4]
 
 def makeMove(app, x, y):
-    dx = x - app.boardLeft1
-    dy = y - app.boardTop
-    cellWidth, cellHeight = getCellSize(app)
-    row = math.floor(dy / cellHeight)
-    col = math.floor(dx / cellWidth)
-    if (0 <= row < app.rows) and (0 <= col < app.cols):
-      return (row, col)
-    else:
-        return None
+    if app.userTurn:
+        dx = x - app.boardLeft1
+        dy = y - app.boardTop
+        cellWidth, cellHeight = getCellSize(app)
+        row = math.floor(dy / cellHeight)
+        col = math.floor(dx / cellWidth)
+        if (0 <= row < app.rows) and (0 <= col < app.cols):
+            app.userGuesses.append((row,col))
+            return (row, col)
+        else:
+            return None
+    elif app.oppTurn:
+        row = random.randint(0, 7)
+        col = random.randint(0, 7)
+        app.oppGuesses.append((row,col))
+        return (row,col)
+
     
 def isDestroyed(row, col, board):
     for i in range(len(board)):
@@ -62,35 +70,30 @@ def isDestroyed(row, col, board):
     return (False, 0)
    
 def onMousePress(app, mouseX, mouseY):
-    if app.userTurn:
+    if ((app.boardLeft1 <= mouseX < app.boardLeft1+app.boardWidth) and 
+        (app.boardTop <= mouseY < app.boardTop+app.boardHeight) and app.userTurn):
         row, col = makeMove(app, mouseX, mouseY)
-        app.userGuesses.append((row,col))
-    elif app.oppTurn and (400<=mouseX<=480) and (500<=mouseY<=550):
-        row = random.randint(0, 7)
-        col = random.randint(0, 7)
-        app.oppGuesses.append((row,col))
-
-    if (row, col) != None and app.userTurn and isDestroyed(row, col, app.board)[0]: 
-        index = isDestroyed(row, col, app.board)[1]
-        app.board[index].remove((row, col))
-        app.message = "Successful Hit!"
-        app.userTurn = False
-        app.oppTurn = True
-        return app.board
+        if isDestroyed(row, col, app.opponentBoard)[0]: 
+            index = isDestroyed(row, col, app.opponentBoard)[1]
+            app.opponentBoard[index].remove((row, col))
+            app.message = "You hit the opponent's ship!"
+            app.userTurn, app.oppTurn = False, True
+            return app.board
     
-    elif app.oppTurn and isDestroyed(row, col, app.opponentBoard)[0]: 
-        index = isDestroyed(row, col, app.opponentBoard)[1]
-        app.opponentBoard[index].remove((row, col))
-        app.message = "Successful Hit!"
-        app.userTurn = True
-        app.oppTurn = False
-        return app.opponentBoard
+    elif app.oppTurn:
+        row, col = makeMove(app, mouseX, mouseY)
+        if isDestroyed(row, col, app.board)[0]: 
+            index = isDestroyed(row, col, app.board)[1]
+            app.board[index].remove((row, col))
+            app.message = "Opponent hit your ship!"
+            app.userTurn, app.oppTurn = True, False
+            return app.opponentBoard
     
     else:
-        app.message = "missed!"
+        app.message = "Missed! Next Turn."
         app.userTurn = not app.userTurn
         app.oppTurn = not app.oppTurn
-        return app.board if app.userTurn else app.opponentBoard 
+        return app.opponentBoard if app.userTurn else app.board 
 
 def onAppStart(app):
     app.message = 'hi!'
@@ -146,9 +149,9 @@ def drawBoardBorder(app, boardLeft):
 def drawCell(app, row, col, boardLeft):
     cellLeft, cellTop = getCellLeftTop(app, row, col, boardLeft)
     cellWidth, cellHeight = getCellSize(app)
-    if (row, col) in app.userGuesses:
+    if (row, col) in app.userGuesses and boardLeft == app.boardLeft1:
         color = 'red'
-    elif (row,col) in app.oppGuesses:
+    elif (row,col) in app.oppGuesses and boardLeft == app.boardLeft2:
         color = 'black'
     else:
         color = None
@@ -178,8 +181,6 @@ def drawCell(app, row, col, boardLeft):
         else:
             drawLabel('0', cellLeft + cellWidth/2, cellTop + cellHeight/2)
         
-
-
 def getCellLeftTop(app, row, col, boardLeft):
     cellWidth, cellHeight = getCellSize(app)
     cellLeft = boardLeft + col * cellWidth
