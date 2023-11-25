@@ -7,21 +7,21 @@ import random
 class Ship:
     def __init__(self, size):
         self.size = size
-        self.orientation = 'horizontal'
+        self.orientation = 'Horizontal'
         self.points = [(0,0) for i in range(size)]    
     
     def updateLocation(self, row, col):
         testPoints = copy.copy(self.points)
         testPoints[0] = (row,col)
-        if self.orientation == 'horizontal':
+        if self.orientation == 'Horizontal':
             for i in range(len(testPoints)):
                 testPoints[i] = (row, col+i)
                 if not pointsLegal(row, col+i):
                     return self.points
-        elif self.orientation == 'vertical':
+        elif self.orientation == 'Vertical':
             for i in range(len(testPoints)):
-                testPoints[i] = (row+1, col)
-                if not pointsLegal(row, col+i):
+                testPoints[i] = (row+i, col)
+                if not pointsLegal(row+i, col):
                     return False          
         self.points = testPoints
         return self.points
@@ -42,11 +42,13 @@ def getShip(app, mouseX, mouseY):
         return ship4
 
 # sample user board
+# ship2 = [(1,6), (2,6), (3,6), (4,6)]
+# ship3 = [(4,1), (5,1), (6,1), (7,1)]
+# ship4 = [(4,2), (4,3), (4,4)]
 ship1 = Ship(3)
-ship2 = [(1,6), (2,6), (3,6), (4,6)]
-ship3 = [(4,1), (5,1), (6,1), (7,1)]
-ship4 = [(4,2), (4,3), (4,4)]
-app.board =  [ship2] + [ship3] + [ship4]
+ship2 = Ship(4)
+ship3 = Ship(4)
+ship4 = Ship(3)
 
 # Builds Opponent Board
 def buildShip(dims):
@@ -108,23 +110,36 @@ def completelySunk(board):
    
 # used for both game play and set up   
 def onMousePress(app, mouseX, mouseY):
-    print(ship1.points)
     if app.setUpScreen:
-        app.setUpMessage = 'Choose Ship'
 
-        app.selectedShip = getShip(app, mouseX, mouseY)
-        if app.selectedShip != None and isinstance(app.selectedShip, Ship):
-            print('yes')
-            app.setUpMessage = 'Choose Location'
-            if getCell(app, mouseX, mouseY) != None:
+        # lets user select the location of the ship
+        if app.setUpStage == 'shipSelection':
+            app.selectedShip = getShip(app, mouseX, mouseY)
+            if app.selectedShip and isinstance(app.selectedShip, Ship):
+                app.setUpStage = 'locationSelection'
+                app.setUpMessage = 'Choose Location'
+        elif app.setUpStage == 'locationSelection':
+            if (app.boardLeft1 <= mouseX < app.boardLeft1 + app.boardWidth and
+                app.boardTop <= mouseY < app.boardTop + app.boardHeight):
                 (row, col) = getCell(app, mouseX, mouseY)
-                print(row,col)
                 prev = app.selectedShip.points
                 app.selectedShip.updateLocation(row, col)
                 if app.selectedShip.points == prev:
-                     app.setUpMessage = 'Invalid Position'
+                    app.setUpMessage = 'Invalid Position! Try Different Spot'
+                    app.setUpStage = 'locationSelection'
+                else:
+                    app.setUpMessage = 'Successful! Continue with Different Ships'    
+                    app.setUpStage = 'shipSelection'
+                    app.board.append(app.selectedShip.points)
+                if len(app.board) == 4: app.setUpStage = 'complete'
+        
+        if (500 <= mouseX < 570) and (480 <= mouseY < 550) and app.setUpStage != 'complete': 
+            app.selectedShip.orientation = 'Vertical' if app.selectedShip.orientation == 'Horizontal' else 'Horizontal'
 
-      
+        if (600 <= mouseX < 735) and (480 <= mouseY < 530): 
+            app.setUpScreen = not app.setUpScreen
+            app.playingScreen = not app.playingScreen
+                    
 
     if app.playingScreen:
         # checking if the game is over, and stopping the game if so
@@ -167,7 +182,7 @@ def onMousePress(app, mouseX, mouseY):
                 return app.opponentBoard if app.userTurn else app.board 
     
 def onAppStart(app):
-    app.message = "Let's Destroy!"
+    # variables needed for the board
     app.rows = 8
     app.cols = 8
     app.boardLeft1 = app.width/26 
@@ -177,6 +192,9 @@ def onAppStart(app):
     app.cellBorderWidth = 1
     app.cellWidth = app.boardWidth / app.cols
     app.cellHeight = app.boardHeight / app.rows
+
+    # variables needed for playing screen
+    app.message = "Let's Destroy!"
     app.userTurn = True
     app.oppTurn = False
     app.userGuesses = []
@@ -187,19 +205,26 @@ def onAppStart(app):
     app.playingScreen = False
     app.gameOver = False
     # Parameters for the user's board
-    app.boardLeft2 = app.boardLeft1 + app.boardWidth + 20  # Separation of 20 pixels
+    app.boardLeft2 = app.boardLeft1 + app.boardWidth + 20 
     app.boardWidth2 = app.boardWidth
     app.boardHeight2 = app.boardHeight
+    app.board = []
     #opponent's board
     app.opponentBoard = opponentBoard(4)
+
+    # variables needed for the 'set-up' stage
     app.selectedShip = None
-    app.setUpMessage = ''
+    app.setUpMessage = 'Choose Ship'
+    app.setUpStage = 'shipSelection'
+
 
 def redrawAll(app):
     if app.setUpScreen:
+        # set up board
         drawBoard(app, app.boardLeft1)
         drawBoardBorder(app, app.boardLeft1)
 
+        # ship selection grid
         drawRect(500, 150, 130, 50, fill=None, border='black')
         drawLabel("ship1", 565, 175)
         drawRect(500, 220, 130, 50, fill=None, border='black')
@@ -209,7 +234,19 @@ def redrawAll(app):
         drawRect(500, 360, 130, 50, fill=None, border='black')
         drawLabel("ship4", 565, 385)
 
-        drawLabel(app.setUpMessage, app.width/2, 100)
+        # displays the message while arranging the ships
+        drawLabel(app.setUpMessage, app.width/2, app.height/13, bold=True, size=30)
+        if app.selectedShip != None:
+            drawLabel(app.selectedShip.orientation, app.width/2, app.height/6, bold=True, size=20)
+
+        # when pressed, moves onto the set up screen
+        if app.setUpStage == 'complete':
+            drawRect(600, 480, 135, 50, fill=None, border='black')
+            drawLabel("Let's Play!", 665, 505, bold=True, size=15)
+
+        # Rotate Button
+        drawRect(500, 480, 70, 70, fill=None, border='black')
+        drawLabel("Rotate", 535, 515, bold=True, size=15)
 
 
     if app.playingScreen:
@@ -259,6 +296,21 @@ def drawCell(app, row, col, boardLeft):
     cellLeft, cellTop = getCellLeftTop(app, row, col, boardLeft)
     cellWidth, cellHeight = getCellSize(app)
 
+    if app.setUpScreen:
+        drawRect(cellLeft, cellTop, cellWidth, cellHeight,
+                fill=None, border='black',
+                borderWidth=app.cellBorderWidth)
+        
+        changed = []
+        for boats in app.board:
+            for points in boats:
+                changed.append(points)
+        if (row, col) in changed:
+            drawLabel('1', cellLeft + cellWidth/2, cellTop + cellHeight/2)
+        else:
+            drawLabel('0', cellLeft + cellWidth/2, cellTop + cellHeight/2)
+
+
     if app.playingScreen:
         if (row, col) in app.userGuesses and boardLeft == app.boardLeft1:
             color = 'red'
@@ -293,11 +345,6 @@ def drawCell(app, row, col, boardLeft):
                 drawLabel('1', cellLeft + cellWidth/2, cellTop + cellHeight/2)
             else:
                 drawLabel('0', cellLeft + cellWidth/2, cellTop + cellHeight/2)
-    
-    if app.setUpScreen:
-        drawRect(cellLeft, cellTop, cellWidth, cellHeight,
-                fill=None, border='black',
-                borderWidth=app.cellBorderWidth)
         
 def getCellLeftTop(app, row, col, boardLeft):
     cellWidth, cellHeight = getCellSize(app)
@@ -310,9 +357,9 @@ def getCellSize(app):
     cellHeight = app.boardHeight / app.rows
     return (cellWidth, cellHeight)
 
-def getCell(app, mouseX, mouseY):
-    dx = mouseX - app.boardLeft1
-    dy = mouseY - app.boardTop
+def getCell(app, x, y):
+    dx = x - app.boardLeft1
+    dy = y - app.boardTop
     cellWidth, cellHeight = getCellSize(app)
     row = math.floor(dy / cellHeight)
     col = math.floor(dx / cellWidth)
