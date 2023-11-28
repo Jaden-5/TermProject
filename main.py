@@ -76,6 +76,7 @@ def opponentBoard(n):
         return opponentBoard(n)
 #checks the legality of the opponent ship arrangement    
 def isLegal(board):
+    if len(board) != 5: return False
     for i in range(len(board)):
         for j in range(len(board)):
             if i != j:
@@ -132,7 +133,9 @@ def onMousePress(app, mouseX, mouseY):
                     app.setUpMessage = 'Successful! Continue with Different Ships'    
                     app.setUpStage = 'shipSelection'
                     app.board.append(app.selectedShip.points)
-                if len(app.board) == 5: app.setUpStage = 'complete'
+                if len(app.board) == 5: 
+                    app.setUpStage = 'complete'
+                    app.drawingUser = copy.deepcopy(app.board)
         
         # button used for changing the orientation
         if (500 <= mouseX < 570) and (480 <= mouseY < 550) and app.setUpStage != 'complete': 
@@ -224,8 +227,11 @@ def restart(app):
     app.boardWidth2 = app.boardWidth
     app.boardHeight2 = app.boardHeight
     app.board = []
+    app.drawingUser = []
     #opponent's board
     app.opponentBoard = opponentBoard(5)
+    app.drawingOpp = copy.deepcopy(app.opponentBoard)
+    app.solution = False
 
     # variables needed for the 'set-up' stage
     app.selectedShip = None
@@ -233,19 +239,27 @@ def restart(app):
     app.setUpStage = 'shipSelection'
 
 
-def drawShip(app, board):
+def drawShip(app, board, boardLeft):
     shipPositions = []
     for ship in board:
         row, col = ship[0]
         testx, testy = ship[1]
-        if row == testx: orientation = 'Horizontal' 
-        elif col == testy: orientation = 'Vertical'
+        if row == testx:
+            orientation = 'Horizontal' 
+        elif col == testy:
+            orientation = 'Vertical'
         shipPositions.append((orientation, len(ship), row, col)) 
     
     for orientation, length, shipRow, shipCol in shipPositions:
-        if app.setUpStage: left = app.boardLeft1
-        else: left = app.boardLeft2
-        shipLeft, shipTop = getCellLeftTop(app,shipRow,shipCol, left)
+        # adjusts the position ships are drawn based on the selection of each side
+        if app.playingScreen:
+            if boardLeft == app.boardLeft1:
+                shipLeft, shipTop = getCellLeftTop(app, shipRow, shipCol, boardLeft)
+            elif boardLeft == app.boardLeft2:
+                shipLeft, shipTop = getCellLeftTop(app, shipRow, shipCol, boardLeft)
+        elif app.setUpScreen: 
+            shipLeft, shipTop = getCellLeftTop(app, shipRow, shipCol, app.boardLeft1)
+
         # draw ship of length 3
         if length == 3 and orientation == 'Horizontal':
             drawImage(app.ship1H, shipLeft, shipTop, width = 3*app.cellWidth, height = app.cellHeight)
@@ -298,7 +312,7 @@ def redrawAll(app):
             drawLabel("Rotate", 535, 515, bold=True, size=15)
             drawRect(500, 480, 70, 70, fill=None, border='black')
         
-        drawShip(app, app.board)
+        drawShip(app, app.board, app.boardLeft1)
 
 
     if app.playingScreen:
@@ -312,17 +326,31 @@ def redrawAll(app):
         else:
             name = 'TURN: OPPONENT'
         drawLabel(name, app.width/2, app.height/6, bold=True, size=20)
+        drawLabel("Opponent", app.width/4, 160, bold=True, size=20)
+        drawLabel("Player", 3*app.width/4, 160, bold=True, size=20)
 
-        # drawing boards
+        # indicates how many ships are left
+        drawLabel(f'{5-len(app.opponentBoard)}/5 ships sunk!', app.width/2, 
+                  app.height/4.5, bold=True, size=20)
+
+        # drawing boards and images of ships
         drawBoard(app, app.boardLeft1)
         drawBoardBorder(app, app.boardLeft1)
         drawBoard(app, app.boardLeft2)
         drawBoardBorder(app, app.boardLeft2)
-        drawShip(app, app.board)
-
+        drawShip(app, app.drawingUser, app.boardLeft2)
+        
         # button for next turn
-        drawRect(600, 480, 135, 50, fill=None, border='black')
-        drawLabel("Opponent's Attack", 665, 505, bold=True, size=15)
+        drawRect(600, 480, 135, 50, fill=None, border='white')
+        drawLabel("Opponent's Attack", 665, 505, bold=True, size=15,fill='white')
+
+        # illustrates solution
+        if app.solution:
+            drawRect(0,0, app.width, app.height, fill='white', opacity=50)
+            drawBoard(app, app.boardLeft1)
+            drawBoardBorder(app, app.boardLeft1)
+            drawShip(app, app.drawingOpp, app.boardLeft1) 
+            print(app.drawingOpp)
 
         # displays the result if the game is over
         if app.gameOver:
@@ -382,26 +410,26 @@ def drawCell(app, row, col, boardLeft):
                 fill=color, border='black',
                 borderWidth=app.cellBorderWidth)
         
-        # make sure only users can see their boards
-        if boardLeft == app.boardLeft2:
-            changed = []
-            for ships in app.board:
-                for points in ships:
-                    changed.append(points)
-            if (row, col) in changed:
-                drawLabel('1', cellLeft + cellWidth/2, cellTop + cellHeight/2)
-            else:
-                drawLabel('0', cellLeft + cellWidth/2, cellTop + cellHeight/2)
-        # opponents' board
-        if boardLeft == app.boardLeft1:
-            changed = []
-            for ships in app.opponentBoard:
-                for points in ships:
-                    changed.append(points)
-            if (row, col) in changed:
-                drawLabel('1', cellLeft + cellWidth/2, cellTop + cellHeight/2)
-            else:
-                drawLabel('0', cellLeft + cellWidth/2, cellTop + cellHeight/2)
+        # # make sure only users can see their boards
+        # if boardLeft == app.boardLeft2:
+        #     changed = []
+        #     for ships in app.board:
+        #         for points in ships:
+        #             changed.append(points)
+        #     if (row, col) in changed:
+        #         drawLabel('1', cellLeft + cellWidth/2, cellTop + cellHeight/2)
+        #     else:
+        #         drawLabel('0', cellLeft + cellWidth/2, cellTop + cellHeight/2)
+        # # opponents' board
+        # if boardLeft == app.boardLeft1:
+        #     changed = []
+        #     for ships in app.opponentBoard:
+        #         for points in ships:
+        #             changed.append(points)
+        #     if (row, col) in changed:
+        #         drawLabel('1', cellLeft + cellWidth/2, cellTop + cellHeight/2)
+        #     else:
+        #         drawLabel('0', cellLeft + cellWidth/2, cellTop + cellHeight/2)
 
 #helper functions needed for board set up and basic game play  
 def getCellLeftTop(app, row, col, boardLeft):
@@ -429,6 +457,8 @@ def getCell(app, x, y):
 def onKeyPress(app, key):
     if key == 'r':
         restart(app)
+    elif key == 's':
+        app.solution = not app.solution
 
 def main():
     runApp(800, 600)
