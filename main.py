@@ -2,6 +2,7 @@ from cmu_graphics import *
 import math
 import copy
 import random
+from PIL import Image
 
 # Builds User's Board
 class Ship:
@@ -186,6 +187,13 @@ def onMousePress(app, mouseX, mouseY):
                 return app.opponentBoard if app.userTurn else app.board 
 
 def onAppStart(app):
+    app.ship1H = CMUImage(Image.open('Images/ship1H.png'))
+    app.ship1V = CMUImage(Image.open('Images/ship1V.png'))
+    app.ship2H = CMUImage(Image.open('Images/ship2H.png'))
+    app.ship2V = CMUImage(Image.open('Images/ship2V.png'))
+    app.ship3H = CMUImage(Image.open('Images/ship3H.png'))
+    app.ship3V = CMUImage(Image.open('Images/ship3V.png'))
+    app.seaFloor = CMUImage(Image.open('Images/floor.jpeg'))
     return restart(app)
 
 def restart(app):
@@ -225,19 +233,52 @@ def restart(app):
     app.setUpStage = 'shipSelection'
 
 
+def drawShip(app, board):
+    shipPositions = []
+    for ship in board:
+        row, col = ship[0]
+        testx, testy = ship[1]
+        if row == testx: orientation = 'Horizontal' 
+        elif col == testy: orientation = 'Vertical'
+        shipPositions.append((orientation, len(ship), row, col)) 
+    
+    for orientation, length, shipRow, shipCol in shipPositions:
+        if app.setUpStage: left = app.boardLeft1
+        else: left = app.boardLeft2
+        shipLeft, shipTop = getCellLeftTop(app,shipRow,shipCol, left)
+        # draw ship of length 3
+        if length == 3 and orientation == 'Horizontal':
+            drawImage(app.ship1H, shipLeft, shipTop, width = 3*app.cellWidth, height = app.cellHeight)
+        elif length == 3 and app.selectedShip.orientation == 'Vertical':
+            drawImage(app.ship1V, shipLeft, shipTop, width = app.cellWidth, height = 3 * app.cellHeight)
+        
+        # draw ship of length 4
+        elif length == 4 and orientation == 'Horizontal':
+            drawImage(app.ship2H, shipLeft, shipTop, width = 4*app.cellWidth, height = app.cellHeight)
+        elif length == 4 and orientation == 'Vertical':
+            drawImage(app.ship2V, shipLeft, shipTop, width = app.cellWidth, height = 4 * app.cellHeight)
+       
+        # draw ship of length 5
+        elif length == 5 and orientation == 'Horizontal':
+            drawImage(app.ship3H, shipLeft, shipTop, width = 5*app.cellWidth, height = app.cellHeight)
+        elif length == 5 and orientation == 'Vertical':
+            drawImage(app.ship3V, shipLeft, shipTop, width = app.cellWidth, height = 4 * app.cellHeight)
+
+
 def redrawAll(app):
     if app.setUpScreen:
+        drawImage(app.seaFloor, 0, 0, width=app.width, height=app.height)    
         # set up board
         drawBoard(app, app.boardLeft1)
         drawBoardBorder(app, app.boardLeft1)
 
         # ship selection grid
-        drawRect(500, 220, 130, 50, fill=None, border='black')
-        drawLabel("ship1(3)", 565, 245)
-        drawRect(500, 290, 130, 50, fill=None, border='black')
-        drawLabel("ship2(4)", 565, 315)
-        drawRect(500, 360, 130, 50, fill=None, border='black')
-        drawLabel("ship3(5)", 565, 385)
+        drawRect(500, 220, 130, 50, fill=None, border='cyan')
+        drawImage(app.ship1H, 500, 220, width = 130, height = 50)
+        drawRect(480, 290, 170, 50, fill=None, border='cyan')
+        drawImage(app.ship2H, 480, 290, width=170, height=50)
+        drawRect(460, 360, 210, 50, fill=None, border='cyan')
+        drawImage(app.ship3H, 460, 360, width=210, height=50)
 
         # displays the message while arranging the ships
         drawLabel(app.setUpMessage, app.width/2, app.height/13, bold=True, size=30)
@@ -253,12 +294,15 @@ def redrawAll(app):
             drawLabel("Let's Play!", 665, 505, bold=True, size=15)
 
         # Rotate Button
-        if app.setUpStage != 'complete':
+        if app.setUpStage != 'complete' and app.selectedShip != None:
             drawLabel("Rotate", 535, 515, bold=True, size=15)
             drawRect(500, 480, 70, 70, fill=None, border='black')
+        
+        drawShip(app, app.board)
 
 
     if app.playingScreen:
+        drawImage(app.seaFloor, 0, 0, width=app.width, height=app.height)  
         # indicates whether both sides' attacks were successful or not
         drawLabel(app.message, app.width/2, app.height/13, bold=True, size=30)
 
@@ -274,6 +318,7 @@ def redrawAll(app):
         drawBoardBorder(app, app.boardLeft1)
         drawBoard(app, app.boardLeft2)
         drawBoardBorder(app, app.boardLeft2)
+        drawShip(app, app.board)
 
         # button for next turn
         drawRect(600, 480, 135, 50, fill=None, border='black')
@@ -311,14 +356,14 @@ def drawCell(app, row, col, boardLeft):
         drawRect(cellLeft, cellTop, cellWidth, cellHeight,
                 fill=None, border='black',
                 borderWidth=app.cellBorderWidth)
-        changed = []
-        for boats in app.board:
-            for points in boats:
-                changed.append(points)
-        if (row, col) in changed:
-            drawLabel('1', cellLeft + cellWidth/2, cellTop + cellHeight/2)
-        else:
-            drawLabel('0', cellLeft + cellWidth/2, cellTop + cellHeight/2)
+        # changed = []
+        # for boats in app.board:
+        #     for points in boats:
+        #         changed.append(points)
+        # if (row, col) in changed:
+        #     drawLabel('1', cellLeft + cellWidth/2, cellTop + cellHeight/2)
+        # else:
+        #     drawLabel('0', cellLeft + cellWidth/2, cellTop + cellHeight/2)
 
 
     if app.playingScreen:
