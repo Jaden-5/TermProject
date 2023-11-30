@@ -40,7 +40,7 @@ class Ship:
         self.points = testPoints
         return self.points
 
-# helper function that checks if the ship is arranged correctly
+# helper function for checking if all ships are arranged correctly
 def pointsLegal(row, col):
     if row>=8 or row<0 or col<0 or col>=8:
         return False
@@ -62,6 +62,7 @@ def isIntersecting(ship1, board):
             return True
     return False
 
+# returns the selected ship as a new instance of the Ship class
 def getShip(app, mouseX, mouseY):
     if (500 <= mouseX <= 630) and (220 <= mouseY <= 270):
         return ship1
@@ -93,6 +94,7 @@ def buildShip(dims):
         coords = tuple(zip(row_ship, col_ship))
     return list(coords)
 
+# generates n opponent ships and cumulate them into a single list
 def opponentBoard(n):
     result = []
     for i in range(5):
@@ -114,7 +116,8 @@ def isLegal(board):
     return True
 
 
-#Functions Used for Game Plays
+
+#functions Used for Game Plays
 def makeMove(app, x, y):
     if app.userTurn:
         return getCell(app, x, y)
@@ -127,6 +130,7 @@ def makeMove(app, x, y):
                 row = random.randint(0, 7)
                 col = random.randint(0, 7)
             else:
+                # guesses are based on cells with high chance of ships being lcoated
                 goodRow, goodCol = app.oppGuesses[-1]
                 moveOptions = smartTarget(app, goodRow, goodCol)
                 if moveOptions != []:
@@ -135,14 +139,17 @@ def makeMove(app, x, y):
                     row = random.randint(0, 7)
                     col = random.randint(0, 7)
                     if (row,col) in app.wrongGuessesOpp:
+                        # if a random guess was already made, it recursively generates another guess
                         return makeMove(app, x, y)
         return (row,col)
-    
+
+# used for advanced guesses; returns coordinates of cells adjacent to 'correct' hits
 def smartTarget(app, guessRow, guessCol):
     targetOptions = []
     potentialTargets = [(guessRow + 1, guessCol), (guessRow, guessCol + 1),
                            (guessRow - 1, guessCol), (guessRow, guessCol - 1)]
     for row, col in potentialTargets:
+        # ensures that all potential guesses are within the boundary
         if ((0 <= row <= 7) and (0 <= col <= 7) and (row,col) not in app.wrongGuessesOpp 
             and (row,col) not in app.oppGuesses):
             targetOptions.append((row, col))
@@ -163,6 +170,7 @@ def completelySunk(board):
 def onMousePress(app, mouseX, mouseY):
     if app.startScreen:
         
+        # buttons used for selecting the level of difficulty
         if ((((app.width/3)-100) <= mouseX <= ((app.width/3)+100)) 
             and (((app.height*15/16)-25) <= mouseY <= ((app.height*15/16)+25))):
             app.oppLevel = 'standard'
@@ -174,7 +182,7 @@ def onMousePress(app, mouseX, mouseY):
             app.startScreen = not app.startScreen
             app.setUpScreen = not app.setUpScreen
 
-        # checking if the user wants to load previous game
+        # loads previously saved game by reading external txt file
         if (31 <= mouseX <= 81) and (app.height/13 <= mouseY <= (app.height/13)+20):
             with open("saveProgress.txt","r+") as f:
                 fileString = f.read() 
@@ -184,7 +192,6 @@ def onMousePress(app, mouseX, mouseY):
                     app.playingScreen = not app.playingScreen
 
 
-    #used for set up screen
     if app.setUpScreen:
         
         # first lets the user select one out of ships of different length
@@ -204,6 +211,7 @@ def onMousePress(app, mouseX, mouseY):
                 if app.selectedShip.points == prev and len(app.board) == 1: 
                     app.setUpMessage = 'Invalid Position! Try Different Spot'
                     app.setUpStage = 'locationSelection'
+                # if the arrangement intersects another ship, users have to re-choose
                 elif app.selectedShip.points == prev or isIntersecting(app.selectedShip.points, app.board): 
                     app.setUpMessage = 'Invalid Position! Try Different Spot'
                     app.setUpStage = 'locationSelection'
@@ -229,7 +237,7 @@ def onMousePress(app, mouseX, mouseY):
                     
 
     if app.playingScreen:
-        # checking if the user wants to save progress
+        # saves progress of the current game
         if (31 <= mouseX <= 81) and (app.height/13 <= mouseY <= (app.height/13)+20):
             app.message = "Progress Saved!"
             return saveGame(app)
@@ -242,6 +250,7 @@ def onMousePress(app, mouseX, mouseY):
                 file.truncate()
 
         # receives (row,col) from user and evaluates if the attack was successful
+        # displays message indicating whether the attack was successful
         if (not app.gameOver and (app.boardLeft1 <= mouseX < app.boardLeft1+app.boardWidth) 
             and (app.boardTop <= mouseY < app.boardTop+app.boardHeight) and app.userTurn):
             row, col = makeMove(app, mouseX, mouseY) 
@@ -260,7 +269,7 @@ def onMousePress(app, mouseX, mouseY):
                 app.oppTurn = not app.oppTurn
                 return app.opponentBoard
 
-        # completes same task as above but for AI's guessed (row,col) 
+        # completes same task as above but for AI's guesses
         elif (not app.gameOver and((app.width/2)-67.5 <= mouseX < (app.width/2)+67.5) 
               and (480 <= mouseY < 530) and app.oppTurn):
             row, col = makeMove(app, mouseX, mouseY)
@@ -279,7 +288,9 @@ def onMousePress(app, mouseX, mouseY):
                 app.oppTurn = not app.oppTurn
                 return app.opponentBoard if app.userTurn else app.board 
 
+
 def onAppStart(app):
+    # loads images from the 'Images' folder
     app.ship1H = CMUImage(Image.open('Images/ship1H.png'))
     app.ship1V = CMUImage(Image.open('Images/ship1V.png'))
     app.ship2H = CMUImage(Image.open('Images/ship2H.png'))
@@ -334,6 +345,7 @@ def restart(app):
     app.oppLevel = None
 
 def saveGame(app):
+    # opens the txt file in writing mode and writes all relevant variables as of current status
     f = open("saveProgress.txt","w+")
     f.write(str(app.board))
     f.write('\n')
@@ -352,6 +364,7 @@ def saveGame(app):
     f.write(str(app.drawingOpp))
     f.write('\n')
     f.write(str(app.oppLevel))
+    # userTurn is saved as 1 and opponentTurn is saved as 0
     if app.userTurn: i = 1
     else: i = 0
     f.write('\n')
@@ -359,6 +372,7 @@ def saveGame(app):
     f.close()
 
 def loadGame(app):
+    # opens the txt file in reading mode and assigns all data to relevant variables
     with open("saveProgress.txt","r+") as f:
         fileString = f.read() 
         app.board = ast.literal_eval(fileString.splitlines()[0])
@@ -377,6 +391,7 @@ def loadGame(app):
 
 def drawShip(app, board, boardLeft):
     shipPositions = []
+    # first figures out given ship's orientation
     for ship in board:
         row, col = ship[0]
         testx, testy = ship[1]
@@ -387,7 +402,7 @@ def drawShip(app, board, boardLeft):
         shipPositions.append((orientation, len(ship), row, col)) 
     
     for orientation, length, shipRow, shipCol in shipPositions:
-        # adjusts the position ships are drawn based on the selection of each side
+        # adjusts the position based on the board it is drawing on
         if app.playingScreen:
             if boardLeft == app.boardLeft1:
                 shipLeft, shipTop = getCellLeftTop(app, shipRow, shipCol, boardLeft)
@@ -417,8 +432,8 @@ def drawShip(app, board, boardLeft):
 
 def redrawAll(app):
     if app.startScreen:
-        drawRect(0,0,app.width,app.height)
         # image
+        drawRect(0,0,app.width,app.height)
         drawImage(app.startbg, 0,0, width=app.width, height=app.height/1.15)
  
         # heading
@@ -446,7 +461,9 @@ def redrawAll(app):
 
 
     if app.setUpScreen:
-        drawImage(app.seaFloor, 0, 0, width=app.width, height=app.height)    
+        # background image
+        drawImage(app.seaFloor, 0, 0, width=app.width, height=app.height)
+
         # set up board
         drawBoard(app, app.boardLeft1)
         drawBoardBorder(app, app.boardLeft1)
@@ -463,9 +480,8 @@ def redrawAll(app):
         drawRect(460, 360, 225, 50, fill=None, border='deepSkyBlue')
         drawImage(app.ship3H, 460, 360, width=210, height=50)
 
-        # displays the message while arranging the ships
+        # displays relevant messages while arranging the ships
         drawRect(app.width/2, app.height/1.2, 420, 50, border='black', fill='white', opacity=40, align='center')
-
         drawLabel(app.setUpMessage, app.width/2, app.height/13, bold=True, size=30)
         drawLabel(f'{len(app.board)}/5 ships arranged', app.width/2, 
                   app.height/4.5, bold=True, size=20)
@@ -475,7 +491,8 @@ def redrawAll(app):
         elif app.selectedShip == None:
             drawLabel(f'Click the ship and select the cell to place it!', app.width/2, 
                     app.height/1.2, bold=True, size=20, fill='black')
-        # when pressed, moves onto the set up screen
+        
+        # button for moving onto the set up screen
         if app.setUpStage == 'complete':
             drawRect(app.width/2, app.height/1.2, 70, 30, fill=None, border='black', align='center')
             drawLabel("Play!", app.width/2, app.height/1.2, bold=True, size=15)
@@ -483,12 +500,15 @@ def redrawAll(app):
         if app.setUpStage != 'complete' and app.selectedShip != None:
             drawRect(app.width/2, app.height/1.2, 70, 30, fill=None, border='black', align='center')
             drawLabel("Rotate", app.width/2, app.height/1.2, bold=True, size=15)
-        
+       
+        # draws images of the ship
         drawShip(app, app.board, app.boardLeft1)
 
 
     if app.playingScreen:
+        # draws background image
         drawImage(app.seaFloor, 0, 0, width=app.width, height=app.height)  
+        
         # indicates whether both sides' attacks were successful or not
         drawLabel(app.message, app.width/2, app.height/13, bold=True, size=30)
 
@@ -532,14 +552,16 @@ def redrawAll(app):
         if app.gameOver:
             if len(app.board) == 0:
                 drawRect(0, 0, app.width, app.height, fill='red', opacity=30)
-                drawRect(app.width/2,app.height/2, 280, 50, fill='white', opacity=50, align='center')
+                drawRect((app.width/2)-140,(app.height/2)-20, 280, 120, fill='white', opacity=50)
                 drawLabel("YOU LOST!", app.width/2, app.height/2, size=50, bold=True)
-                drawLabel("Press r to restart!",app.width/2,app.height*14.5/16,size = 30, font='monospace')
+                drawLabel("Press r to restart!",app.width/2,app.height*9/16,size = 20, bold=True)
+                drawLabel("Press s to see solution",app.width/2,app.height*10/16,size = 20, bold=True)
             elif len(app.opponentBoard) == 0:
                 drawRect(0, 0, app.width, app.height, fill='green', opacity=30)
-                drawRect(app.width/2,app.height/2, 280, 50, fill='white', opacity=50, align='center')
-                drawLabel("YOU WIN!", app.width/2, app.height/2, size=50, bold=True, font='monospace')
-                drawLabel("Press r to restart!",app.width/2,app.height*14.5/16,size = 30, font='monospace')
+                drawRect((app.width/2)-140,(app.height/2)-20, 280, 120, fill='white', opacity=50)
+                drawLabel("YOU WIN!", app.width/2, app.height/2, size=50, bold=True)
+                drawLabel("Press r to restart!",app.width/2,app.height*9/16,size = 20, bold=True)
+                drawLabel("Press s to see solution",app.width/2,app.height*10/16,size = 20, bold=True)
 
 # illustrating boards for both set-up and playing screen
 def drawBoard(app, boardLeft):
@@ -556,7 +578,7 @@ def drawCell(app, row, col, boardLeft):
     cellWidth, cellHeight = getCellSize(app)
 
     if app.setUpScreen:
-        # illustrating ships in the set-up screen
+        # board used in the set-up screen
         drawRect(cellLeft, cellTop, cellWidth, cellHeight,
                 fill=None, border='black',
                 borderWidth=app.cellBorderWidth)
@@ -577,7 +599,7 @@ def drawCell(app, row, col, boardLeft):
                 fill=color, border='black',
                 borderWidth=app.cellBorderWidth)
 
-#helper functions needed for board set up and basic game play  
+#helper functions needed for board and cell set up 
 def getCellLeftTop(app, row, col, boardLeft):
     cellWidth, cellHeight = getCellSize(app)
     cellLeft = boardLeft + col * cellWidth
@@ -603,11 +625,14 @@ def getCell(app, x, y):
 def lengthIllustrater(n, left, top, width, color):
     for i in range(n):
         drawRect(left + width*i, top, width, 50, fill=None, border=color)
-    
+
+
 def onKeyPress(app, key):
     if key == 'r':
+        # resets the game
         restart(app)
-    elif key == 's':
+    elif key == 's' and app.gameOver:
+        # illustrates solution
         app.solution = not app.solution
 
 def main():
