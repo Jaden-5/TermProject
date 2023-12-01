@@ -5,18 +5,11 @@ import random
 import ast
 from PIL import Image
 
-'''
-Citation:
-https://discuss.codecademy.com/t/excellent-battleship-game-written-in-python/430605
-https://bigmonty12.github.io/battleship
-https://towardsdatascience.com/coding-an-intelligent-battleship-agent-bf0064a4b319 
-https://realpython.com/python-zip-function/ 
-https://www.guru99.com/reading-and-writing-files-in-python.html 
-https://codedamn.com/news/python/how-to-convert-a-string-to-a-list-in-python 
-'''
 
 # Builds User's Board
 class Ship:
+    # https://discuss.codecademy.com/t/excellent-battleship-game-written-in-python/430605 
+    # general structure of the Ship class is inspired from the source above
     #constructor initializes size, orientation, and specific coordinates of ships
     def __init__(self, size):
         self.size = size
@@ -75,7 +68,8 @@ ship1 = Ship(3)
 ship2 = Ship(4)
 ship3 = Ship(5)
 
-# Builds Opponent Board
+# Builds Opponent Board, based on the source code from below
+# https://bigmonty12.github.io/battleship 
 def buildShip(dims):
     len_ship = random.randint(3, dims-1)
     orientation = random.randint(0, 1) 
@@ -144,6 +138,7 @@ def makeMove(app, x, y):
         return (row,col)
 
 # used for advanced guesses; returns coordinates of cells adjacent to 'correct' hits
+# https://towardsdatascience.com/coding-an-intelligent-battleship-agent-bf0064a4b319  
 def smartTarget(app, guessRow, guessCol):
     targetOptions = []
     potentialTargets = [(guessRow + 1, guessCol), (guessRow, guessCol + 1),
@@ -344,8 +339,9 @@ def restart(app):
     app.setUpStage = 'shipSelection'
     app.oppLevel = None
 
+# https://www.guru99.com/reading-and-writing-files-in-python.html referenced for saving and loading game 
+# opens the txt file in writing mode and writes all relevant variables as of current status
 def saveGame(app):
-    # opens the txt file in writing mode and writes all relevant variables as of current status
     f = open("saveProgress.txt","w+")
     f.write(str(app.board))
     f.write('\n')
@@ -373,6 +369,8 @@ def saveGame(app):
 
 def loadGame(app):
     # opens the txt file in reading mode and assigns all data to relevant variables
+    # https://codedamn.com/news/python/how-to-convert-a-string-to-a-list-in-python 
+    # referenced to look for other ways to convert a string to a list as list() would not work
     with open("saveProgress.txt","r+") as f:
         fileString = f.read() 
         app.board = ast.literal_eval(fileString.splitlines()[0])
@@ -631,7 +629,7 @@ def onKeyPress(app, key):
     if key == 'r':
         # resets the game
         restart(app)
-    elif key == 's' and app.gameOver:
+    elif key == 's':
         # illustrates solution
         app.solution = not app.solution
 
