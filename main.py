@@ -119,7 +119,7 @@ def makeMove(app, x, y):
         if app.oppLevel == 'standard':
             row = random.randint(0, 7)
             col = random.randint(0, 7)
-        elif app.oppLevel == 'advanced':
+        elif app.oppLevel == 'intermediate':
             if app.oppGuesses == []:
                 row = random.randint(0, 7)
                 col = random.randint(0, 7)
@@ -135,6 +135,36 @@ def makeMove(app, x, y):
                     if (row,col) in app.wrongGuessesOpp:
                         # if a random guess was already made, it recursively generates another guess
                         return makeMove(app, x, y)
+        elif app.oppLevel == 'advanced':
+            count = 0
+            if app.oppGuesses == []:
+                # in smarterRandom, the guesses are generated randomly for quadrant at a time
+                row, col = smarterRandom(app)
+                count += 1
+            elif (len(app.oppGuesses) > 1 and (app.oppGuesses[-1][0] == app.oppGuesses[-2][0] 
+                or app.oppGuesses[-1][1] == app.oppGuesses[-2][1])):
+                pastRow, pastCol = app.oppGuesses[-2]
+                goodRow, goodCol = app.oppGuesses[-1]
+                # compares the two cells that has been hit correctly
+                moveOptions = trackSameShip(app, pastRow, pastCol, goodRow, goodCol)
+                if moveOptions != []:
+                    row, col = moveOptions.pop()
+                else:
+                    row, col = smarterRandom(app)
+                    count += 1
+                    if (row,col) in app.wrongGuessesOpp:
+                        return makeMove(app, x, y)
+            else:
+                # first tries adjacent cells
+                goodRow, goodCol = app.oppGuesses[-1]
+                moveOptions = smartTarget(app, goodRow, goodCol)
+                if moveOptions != []:
+                    row, col = moveOptions.pop()
+                else:
+                    row, col = smarterRandom(app)
+                    count += 1
+                    if (row,col) in app.wrongGuessesOpp:
+                        return makeMove(app, x, y)              
         return (row,col)
 
 # used for advanced guesses; returns coordinates of cells adjacent to 'correct' hits
@@ -149,6 +179,44 @@ def smartTarget(app, guessRow, guessCol):
             and (row,col) not in app.oppGuesses):
             targetOptions.append((row, col))
     return targetOptions
+
+def trackSameShip(app, row1, col1, row2, col2):
+    # based on two correct hits, guesses the orientation of the ship
+    if row1 == row2:
+        colLeft = min(col1, col2) - 1
+        colRight = max(col1, col2) + 1
+        result = [(row1, colLeft), (row1, colRight)]
+    elif col1 == col2:
+        rowUp = min(row1, row2) - 1
+        rowDown = max(row1, row2) + 1
+        result = [(rowUp, col1), (rowDown, col1)]
+    editedResult = []
+    i = 0
+    # then returns potential points along the same orientation, excluding ones already tried
+    while i < len(result):
+        point = result[i]
+        if point not in app.wrongGuessesOpp and point not in app.oppGuesses:
+            editedResult.append(point)
+        i += 1
+    return editedResult
+
+def smarterRandom(app):
+    # whenever the opponent needs a new completely random guess, it goes around each quadrant 
+    # and returns fairly scattered set of guesses from different quadrant each time
+    quadrant = (len(app.wrongGuessesOpp))%4
+    if quadrant == 0:
+        row = random.randint(0, 3)
+        col = random.randint(0,3)  
+    elif quadrant == 1:
+        row = random.randint(0, 3)
+        col = random.randint(4, 7)  
+    elif quadrant == 2:
+        row = random.randint(4, 7) 
+        col = random.randint(0, 3)
+    elif quadrant == 3:
+        row = random.randint(4, 7) 
+        col = random.randint(4, 7)
+    return row, col
 
 def isDestroyed(row, col, board):
     for i in range(len(board)):
@@ -166,13 +234,15 @@ def onMousePress(app, mouseX, mouseY):
     if app.startScreen:
         
         # buttons used for selecting the level of difficulty
-        if ((((app.width/3)-100) <= mouseX <= ((app.width/3)+100)) 
-            and (((app.height*15/16)-25) <= mouseY <= ((app.height*15/16)+25))):
+        if (50 <= mouseX <= 250) and (app.height*14.2/16 <= mouseY <= ((app.height*14.2/16)+50)):
             app.oppLevel = 'standard'
             app.startScreen = not app.startScreen
             app.setUpScreen = not app.setUpScreen
-        elif ((((2*app.width/3)-100) <= mouseX <= ((2*app.width/3)+100)) 
-              and (((app.height*15/16)-25) <= mouseY <= ((app.height*15/16)+25))):
+        elif (300 <= mouseX <= 500) and (app.height*14.2/16 <= mouseY <= ((app.height*14.2/16)+50)):
+            app.oppLevel = 'intermediate'
+            app.startScreen = not app.startScreen
+            app.setUpScreen = not app.setUpScreen
+        elif (550 <= mouseX <= 750) and (app.height*14.2/16 <= mouseY <= ((app.height*14.2/16)+50)):
             app.oppLevel = 'advanced'
             app.startScreen = not app.startScreen
             app.setUpScreen = not app.setUpScreen
@@ -294,6 +364,8 @@ def onAppStart(app):
     app.ship3V = CMUImage(Image.open('Images/ship3V.png'))
     app.seaFloor = CMUImage(Image.open('Images/floor.jpeg'))
     app.startbg = CMUImage(Image.open('Images/startbg.jpeg'))
+    app.explosion = CMUImage(Image.open('Images/explosion.png'))
+    app.splash = CMUImage(Image.open('Images/splash.png'))
     return restart(app)
 
 def restart(app):
@@ -427,6 +499,23 @@ def drawShip(app, board, boardLeft):
         elif length == 5 and orientation == 'Vertical':
             drawImage(app.ship3V, shipLeft, shipTop, width = app.cellWidth, height = 4 * app.cellHeight)
 
+# two functions below are needed for illustrating special effects 
+def drawExplosion(app, board, boardLeft):
+    if boardLeft == app.boardLeft1: check=app.userGuesses 
+    else: check=app.oppGuesses
+    for ship in board:
+        for (row, col) in ship:
+            if (row, col) in check:
+                cellLeft, cellTop = getCellLeftTop(app, row, col, boardLeft)
+                drawImage(app.explosion, cellLeft, cellTop, width = app.cellWidth, height = app.cellHeight)
+def drawSplash(app, board, boardLeft):
+    if boardLeft == app.boardLeft1: check=app.wrongGuessesUser 
+    else: check=app.wrongGuessesOpp
+    for ship in board:
+        for (row, col) in ship:
+            if (row, col) in check:
+                cellLeft, cellTop = getCellLeftTop(app, row, col, boardLeft)
+                drawImage(app.splash, cellLeft, cellTop, width = app.cellWidth, height = app.cellHeight)
 
 def redrawAll(app):
     if app.startScreen:
@@ -448,10 +537,12 @@ def redrawAll(app):
         drawLabel(instructions3, app.width/2,  app.height/1.47 + 80, fill='white', bold=True, size = 20, font='monospace')
  
         # buttons
-        drawRect(app.width/3, app.height*15/16, 200, 50, fill='lightGray',align = 'center')
-        drawLabel('Standard', app.width/3, app.height*15/16, bold=True,size=20, font='monospace')
-        drawRect(2*app.width/3, app.height*15/16, 200, 50, fill='lightSlateGray',align = 'center')
-        drawLabel('Advanced', 2*app.width/3, app.height*15/16, bold=True,size=20, font='monospace')
+        drawRect(50, app.height*14.2/16, 200, 50, fill='lightGray')
+        drawLabel('Standard', 150, app.height*14.8/16, bold=True,size=20, font='monospace')
+        drawRect(300, app.height*14.2/16, 200, 50, fill='lightSlateGray')
+        drawLabel('Intermediate', 400, app.height*14.8/16, bold=True,size=20, font='monospace')
+        drawRect(550, app.height*14.2/16, 200, 50, fill='darkSlateGray')
+        drawLabel('Advanced', 650, app.height*14.8/16, bold=True,size=20, font='monospace')
 
         # button for loading saved game 
         drawRect(31, app.height/13, 50, 20, fill='whiteSmoke', border='black', opacity=50)
@@ -529,6 +620,10 @@ def redrawAll(app):
         drawBoard(app, app.boardLeft2)
         drawBoardBorder(app, app.boardLeft2)
         drawShip(app, app.drawingUser, app.boardLeft2)
+        drawExplosion(app, app.drawingOpp, app.boardLeft1)
+        drawExplosion(app, app.drawingUser, app.boardLeft2)
+        # drawSplash(app, app.drawingOpp, app.boardLeft1)
+        # drawSplash(app, app.drawingUser, app.boardLeft2)
         
         # button for next turn
         if app.oppTurn:
