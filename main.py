@@ -19,7 +19,6 @@ class Ship:
     #method is called on mousepress when the player selects the cell to locate
     def updateLocation(self, row, col):
         testPoints = copy.copy(self.points)
-        testPoints[0] = (row,col)
         if self.orientation == 'Horizontal':
             for i in range(len(testPoints)):
                 testPoints[i] = (row, col+i)
@@ -497,7 +496,7 @@ def drawShip(app, board, boardLeft):
         elif length == 5 and orientation == 'Horizontal':
             drawImage(app.ship3H, shipLeft, shipTop, width = 5*app.cellWidth, height = app.cellHeight)
         elif length == 5 and orientation == 'Vertical':
-            drawImage(app.ship3V, shipLeft, shipTop, width = app.cellWidth, height = 4 * app.cellHeight)
+            drawImage(app.ship3V, shipLeft, shipTop, width = app.cellWidth, height = 5 * app.cellHeight)
 
 # two functions below are needed for illustrating special effects 
 def drawExplosion(app, board, boardLeft):
