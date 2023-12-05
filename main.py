@@ -260,6 +260,8 @@ def onMousePress(app, mouseX, mouseY):
             if app.selectedShip and isinstance(app.selectedShip, Ship):
                 app.setUpStage = 'locationSelection'
                 app.setUpMessage = 'Choose Location'
+                app.cx = mouseX
+                app.cy = mouseY
         # then moves onto selecting the location for the given ship
         elif app.setUpStage == 'locationSelection':
             if (app.boardLeft1 <= mouseX < app.boardLeft1 + app.boardWidth and
@@ -280,6 +282,7 @@ def onMousePress(app, mouseX, mouseY):
                     app.setUpMessage = 'Successful! Continue with Different Ships'    
                     app.setUpStage = 'shipSelection'
                     app.board.append(app.selectedShip.points)
+                    app.selectedShip = None
                 if len(app.board) == 5: 
                     app.setUpStage = 'complete'
                     app.drawingUser = copy.deepcopy(app.board)
@@ -412,6 +415,8 @@ def restart(app):
     app.setUpMessage = 'Choose Ship'
     app.setUpStage = 'shipSelection'
     app.oppLevel = None
+    app.cx = 0
+    app.cy = 0
 
 # https://www.guru99.com/reading-and-writing-files-in-python.html referenced for saving and loading game 
 # opens the txt file in writing mode and writes all relevant variables as of current status
@@ -501,6 +506,25 @@ def drawShip(app, board, boardLeft):
         elif length == 5 and orientation == 'Vertical':
             drawImage(app.ship3V, shipLeft, shipTop, width = app.cellWidth, height = 5 * app.cellHeight)
 
+def drawSelectedShip(app, x, y):
+    # draw ship of length 3
+    if app.selectedShip == ship1 and app.selectedShip.orientation == 'Horizontal':
+        drawImage(app.ship1H, x, y, width = 3*app.cellWidth, height = app.cellHeight, align='center')
+    elif app.selectedShip == ship1 and app.selectedShip.orientation == 'Vertical':
+        drawImage(app.ship1V, x, y, width = app.cellWidth, height = 3 * app.cellHeight, align='center')
+    
+    # draw ship of length 4
+    elif app.selectedShip == ship2 and app.selectedShip.orientation == 'Horizontal':
+        drawImage(app.ship2H, x, y, width = 4*app.cellWidth, height = app.cellHeight, align='center')
+    elif app.selectedShip == ship2 and app.selectedShip.orientation == 'Vertical':
+        drawImage(app.ship2V, x, y, width = app.cellWidth, height = 4 * app.cellHeight, align='center')
+    
+    # draw ship of length 5
+    elif app.selectedShip == ship3 and app.selectedShip.orientation == 'Horizontal':
+        drawImage(app.ship3H, x, y, width = 5*app.cellWidth, height = app.cellHeight)
+    elif app.selectedShip == ship3 and app.selectedShip.orientation == 'Vertical':
+        drawImage(app.ship3V, x, y, width = app.cellWidth, height = 5 * app.cellHeight)
+
 # two functions below are needed for illustrating special effects 
 def drawExplosion(app, board, boardLeft):
     if boardLeft == app.boardLeft1: check=app.userGuesses 
@@ -568,6 +592,7 @@ def redrawAll(app):
         lengthIllustrater(5, 460, 360, 45, 'deepSkyBlue')
         drawRect(460, 360, 225, 50, fill=None, border='deepSkyBlue')
         drawImage(app.ship3H, 460, 360, width=210, height=50)
+        drawSelectedShip(app, app.cx, app.cy)
 
         # displays relevant messages while arranging the ships
         drawRect(app.width/2, app.height/1.2, 420, 50, border='black', fill='white', opacity=40, align='center')
@@ -681,12 +706,8 @@ def drawCell(app, row, col, boardLeft):
         # different colors based on whether the hit was successful
         if (row, col) in app.userGuesses and boardLeft == app.boardLeft1:
             color = 'red'
-        # elif (row, col) in app.wrongGuessesUser and boardLeft == app.boardLeft1:
-        #     color = 'grey'
         elif (row, col) in app.oppGuesses and boardLeft == app.boardLeft2:
             color = 'black'
-        # elif (row, col) in app.wrongGuessesOpp and boardLeft == app.boardLeft2:
-        #     color = 'grey'
         else:
             color = None
         drawRect(cellLeft, cellTop, cellWidth, cellHeight,
@@ -720,6 +741,10 @@ def lengthIllustrater(n, left, top, width, color):
     for i in range(n):
         drawRect(left + width*i, top, width, 50, fill=None, border=color)
 
+def onMouseMove(app, mouseX, mouseY):
+    if app.setUpStage == 'locationSelection':
+        app.cx = mouseX
+        app.cy = mouseY
 
 def onKeyPress(app, key):
     if key == 'r':
