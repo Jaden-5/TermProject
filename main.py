@@ -4,7 +4,7 @@ import copy
 import random
 import ast
 from PIL import Image
-
+# from SetUp import Ship
 
 # Builds User's Board
 class Ship:
@@ -17,19 +17,24 @@ class Ship:
         self.points = [(0,0) for i in range(size)]    
     
     #method is called on mousepress when the player drags the ship to the cell
-    def updateLocation(self, row, col):
+    def updateLocation(self, app, row, col):
         testPoints = copy.deepcopy(self.points)
-        midPoint = self.size // 2 if self.size%2 == 1 else 1
+        if self.size % 2 == 1:
+            midPoint = self.size // 2
+            end = midPoint+1
+        elif self.size == 4:
+            midPoint = 1
+            end = midPoint+2
         if self.orientation == 'Horizontal':
-            for i in range(-midPoint, midPoint+1):
-                if 0 <= col + i < 8:
-                    testPoints[i+midPoint] = (row, col+i)
+            for cell in range(-midPoint, end):
+                if 0 <= col + cell < app.cols:
+                    testPoints[cell+midPoint] = (row, col+cell)
                 else:
                     return self.points
         elif self.orientation == 'Vertical':
-            for i in range(-midPoint, midPoint+1):
-                if 0 <= row + i < 8:
-                    testPoints[i+midPoint] = (row+i, col)
+            for cell in range(-midPoint, end):
+                if 0 <= row + cell < app.rows:
+                    testPoints[cell+midPoint] = (row+cell, col)
                 else:
                     return self.points
         self.points = testPoints
@@ -335,9 +340,9 @@ def onMouseRelease(app, mouseX, mouseY):
             app.boardTop <= app.chosenY < app.boardTop + app.boardHeight):
             (row, col) = getCell(app, app.chosenX, app.chosenY)
             prev = copy.deepcopy(app.selectedShip.points)
-            app.selectedShip.updateLocation(row, col)
+            app.selectedShip.updateLocation(app, row, col)
             # if invalid, the points are not updated, so users have to re-choose
-            if ((app.selectedShip.points == prev and len(app.board) == 1) or 
+            if (app.selectedShip.points == prev or 
             isIntersecting(app.selectedShip.points, app.board)): 
                 app.setUpMessage = 'Invalid Position! Try Different Spot'
             else:
@@ -347,6 +352,7 @@ def onMouseRelease(app, mouseX, mouseY):
                 app.board.append(app.selectedShip.points)
                 app.selectedShip = None
             if len(app.board) == 5: 
+                app.setUpMessage = 'Successful! Hit the Play Button to Begin'  
                 app.setUpStage = 'complete'
                 app.drawingUser = copy.deepcopy(app.board)
 
@@ -370,8 +376,7 @@ def onAppStart(app):
     # source for splash: 
     # https://www.vectorstock.com/royalty-free-vector/water-splash-animation-dripping-special-vector-39065396 
     app.splash = CMUImage(Image.open('Images/splash.png'))
-    # source for gif file of explosion
-    # https://tenor.com/search/explosions-gifs 
+    # source for gif file of explosion: https://tenor.com/search/explosions-gifs 
     explosionGif = Image.open('Images/explosiongif.gif')
     # setting up gif animations referenced from F23_demos animatedGifs.py
     app.spriteList = []
@@ -554,10 +559,12 @@ def drawExplosion(app, board, boardLeft):
 def onStep(app):
     app.spriteCounter = (app.spriteCounter + 1) % len(app.spriteList)
 
-def drawSplash(app, errors, boardLeft):
+def drawSplash(app, errors, correct, boardLeft):
+    errors = set(errors)
+    correct = set(correct)
     for row in range(8):
         for col in range(8):
-            if (row, col) in errors:
+            if (row, col) in errors and (row, col) not in correct:
                 cellLeft, cellTop = getCellLeftTop(app, row, col, boardLeft)
                 drawImage(app.splash, cellLeft, cellTop, width = app.cellWidth, height = app.cellHeight)
 
@@ -622,8 +629,8 @@ def redrawAll(app):
         if app.selectedShip != None:
             drawLabel(f'Orientation: {app.selectedShip.orientation}', app.width/2, 
                       app.height/6, bold=True, size=20)
-        elif app.selectedShip == None:
-            drawLabel(f'Click the ship and select the cell to place it!', app.width/2, 
+        elif app.selectedShip == None and app.setUpStage != 'complete':
+            drawLabel(f'CLICK and DRAG the ship to place it!', app.width/2, 
                     app.height/1.2, bold=True, size=20, fill='black')
         
         # button for moving onto the set up screen
@@ -667,8 +674,8 @@ def redrawAll(app):
         drawShip(app, app.drawingUser, app.boardLeft2)
         drawExplosion(app, app.drawingOpp, app.boardLeft1)
         drawExplosion(app, app.drawingUser, app.boardLeft2)
-        drawSplash(app, app.wrongGuessesUser, app.boardLeft1)
-        drawSplash(app, app.wrongGuessesOpp, app.boardLeft2)
+        drawSplash(app, app.wrongGuessesUser, app.userGuesses, app.boardLeft1)
+        drawSplash(app, app.wrongGuessesOpp, app.oppGuesses, app.boardLeft2)
         
         
         # button for next turn
@@ -688,7 +695,7 @@ def redrawAll(app):
         drawLabel('Save', 56, (app.height/13)+10, bold=True, size=20)
 
         # displays the result if the game is over
-        if app.gameOver:
+        if app.gameOver and app.solution != True:
             if len(app.board) == 0:
                 drawRect(0, 0, app.width, app.height, fill='red', opacity=30)
                 drawRect((app.width/2)-140,(app.height/2)-20, 280, 120, fill='white', opacity=50)
