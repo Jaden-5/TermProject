@@ -135,11 +135,9 @@ def makeMove(app, x, y):
                         # if a random guess was already made, it recursively generates another guess
                         return makeMove(app, x, y)
         elif app.oppLevel == 'advanced':
-            count = 0
             if app.oppGuesses == []:
                 # in smarterRandom, the guesses are generated randomly for quadrant at a time
                 row, col = smarterRandom(app)
-                count += 1
             elif (len(app.oppGuesses) > 1 and (app.oppGuesses[-1][0] == app.oppGuesses[-2][0] 
                 or app.oppGuesses[-1][1] == app.oppGuesses[-2][1])):
                 pastRow, pastCol = app.oppGuesses[-2]
@@ -150,7 +148,6 @@ def makeMove(app, x, y):
                     row, col = moveOptions.pop()
                 else:
                     row, col = smarterRandom(app)
-                    count += 1
                     if (row,col) in app.wrongGuessesOpp:
                         return makeMove(app, x, y)
             else:
@@ -161,7 +158,6 @@ def makeMove(app, x, y):
                     row, col = moveOptions.pop()
                 else:
                     row, col = smarterRandom(app)
-                    count += 1
                     if (row,col) in app.wrongGuessesOpp:
                         return makeMove(app, x, y)              
         return (row,col)
@@ -189,9 +185,9 @@ def trackSameShip(app, row1, col1, row2, col2):
         rowUp = min(row1, row2) - 1
         rowDown = max(row1, row2) + 1
         result = [(rowUp, col1), (rowDown, col1)]
+    # returns potential points along the same orientation, excluding ones already tried
     editedResult = []
     i = 0
-    # then returns potential points along the same orientation, excluding ones already tried
     while i < len(result):
         point = result[i]
         if point not in app.wrongGuessesOpp and point not in app.oppGuesses:
@@ -269,7 +265,7 @@ def onMousePress(app, mouseX, mouseY):
             if (app.boardLeft1 <= mouseX < app.boardLeft1 + app.boardWidth and
                 app.boardTop <= mouseY < app.boardTop + app.boardHeight):
                 (row, col) = getCell(app, mouseX, mouseY)
-                prev = app.selectedShip.points
+                prev = copy.deepcopy(app.selectedShip.points)
                 app.selectedShip.updateLocation(row, col)
                 # if invalid, the points are not updated, so users have to re-choose
                 if app.selectedShip.points == prev and len(app.board) == 1: 
@@ -355,15 +351,22 @@ def onMousePress(app, mouseX, mouseY):
 
 def onAppStart(app):
     # loads images from the 'Images' folder
+    # source for ship images: https://www.freepik.com/free-photos-vectors/battleship 
     app.ship1H = CMUImage(Image.open('Images/ship1H.png'))
     app.ship1V = CMUImage(Image.open('Images/ship1V.png'))
     app.ship2H = CMUImage(Image.open('Images/ship2H.png'))
     app.ship2V = CMUImage(Image.open('Images/ship2V.png'))
     app.ship3H = CMUImage(Image.open('Images/ship3H.png'))
     app.ship3V = CMUImage(Image.open('Images/ship3V.png'))
+    # source for sea surface: https://stock.adobe.com/search?k=ocean+from+above 
     app.seaFloor = CMUImage(Image.open('Images/floor.jpeg'))
+    # source for starting screen: 
+    # https://arstechnica.com/gaming/2013/11/battlefield-4-the-brutal-broken-beautiful-pinnacle-of-first-person-shooters/
     app.startbg = CMUImage(Image.open('Images/startbg.jpeg'))
+    # source for explosion: https://pngfre.com/explosion-png/ 
     app.explosion = CMUImage(Image.open('Images/explosion.png'))
+    # source for splash: 
+    # https://www.vectorstock.com/royalty-free-vector/water-splash-animation-dripping-special-vector-39065396 
     app.splash = CMUImage(Image.open('Images/splash.png'))
     return restart(app)
 
@@ -507,12 +510,10 @@ def drawExplosion(app, board, boardLeft):
             if (row, col) in check:
                 cellLeft, cellTop = getCellLeftTop(app, row, col, boardLeft)
                 drawImage(app.explosion, cellLeft, cellTop, width = app.cellWidth, height = app.cellHeight)
-def drawSplash(app, board, boardLeft):
-    if boardLeft == app.boardLeft1: check=app.wrongGuessesUser 
-    else: check=app.wrongGuessesOpp
-    for ship in board:
-        for (row, col) in ship:
-            if (row, col) in check:
+def drawSplash(app, errors, boardLeft):
+    for row in range(8):
+        for col in range(8):
+            if (row, col) in errors:
                 cellLeft, cellTop = getCellLeftTop(app, row, col, boardLeft)
                 drawImage(app.splash, cellLeft, cellTop, width = app.cellWidth, height = app.cellHeight)
 
@@ -621,8 +622,9 @@ def redrawAll(app):
         drawShip(app, app.drawingUser, app.boardLeft2)
         drawExplosion(app, app.drawingOpp, app.boardLeft1)
         drawExplosion(app, app.drawingUser, app.boardLeft2)
-        # drawSplash(app, app.drawingOpp, app.boardLeft1)
-        # drawSplash(app, app.drawingUser, app.boardLeft2)
+        drawSplash(app, app.wrongGuessesUser, app.boardLeft1)
+        drawSplash(app, app.wrongGuessesOpp, app.boardLeft2)
+        # drawSplash(app, errors, boardLeft):
         
         # button for next turn
         if app.oppTurn:
@@ -679,12 +681,12 @@ def drawCell(app, row, col, boardLeft):
         # different colors based on whether the hit was successful
         if (row, col) in app.userGuesses and boardLeft == app.boardLeft1:
             color = 'red'
-        elif (row, col) in app.wrongGuessesUser and boardLeft == app.boardLeft1:
-            color = 'grey'
+        # elif (row, col) in app.wrongGuessesUser and boardLeft == app.boardLeft1:
+        #     color = 'grey'
         elif (row, col) in app.oppGuesses and boardLeft == app.boardLeft2:
             color = 'black'
-        elif (row, col) in app.wrongGuessesOpp and boardLeft == app.boardLeft2:
-            color = 'grey'
+        # elif (row, col) in app.wrongGuessesOpp and boardLeft == app.boardLeft2:
+        #     color = 'grey'
         else:
             color = None
         drawRect(cellLeft, cellTop, cellWidth, cellHeight,
