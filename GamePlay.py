@@ -14,8 +14,8 @@ def makeMove(app, x, y):
             row = random.randint(0, 7)
             col = random.randint(0, 7)
         elif app.oppLevel == 'intermediate':
-            # in intermediate, guesses are first randomly generated
             if app.oppGuesses == []:
+                # in intermediate, guesses are first randomly generated
                 row = random.randint(0, 7)
                 col = random.randint(0, 7)
             else:
@@ -59,7 +59,7 @@ def makeMove(app, x, y):
                         return makeMove(app, x, y)              
         return (row,col)
 
-# used for advanced guesses; returns coordinates of cells adjacent to 'correct' hits
+# used for intermediate guesses; returns coordinates of cells adjacent to 'correct' hits
 # https://towardsdatascience.com/coding-an-intelligent-battleship-agent-bf0064a4b319  
 def smartTarget(app, guessRow, guessCol):
     targetOptions = []
@@ -72,6 +72,8 @@ def smartTarget(app, guessRow, guessCol):
             targetOptions.append((row, col))
     return targetOptions
 
+
+# two functions below are used for advanced guesses
 def trackSameShip(app, row1, col1, row2, col2):
     # based on two correct hits, guesses the orientation of the ship
     if row1 == row2:
@@ -110,6 +112,7 @@ def smarterRandom(app):
         col = random.randint(4, 7)
     return row, col
 
+
 # checks if a ship is destroyed
 def isDestroyed(row, col, board):
     for i in range(len(board)):
@@ -142,6 +145,8 @@ def getCellSize(app):
     cellHeight = app.boardHeight / app.rows
     return (cellWidth, cellHeight)
 
+
+# helper function needed for game play in separate files
 def getCellLeftTop(app, row, col, boardLeft):
     cellWidth, cellHeight = getCellSize(app)
     cellLeft = boardLeft + col * cellWidth
