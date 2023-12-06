@@ -8,8 +8,9 @@ from SetUp import *
 from GamePlay import *
 from SaveLoad import *
 
+
 ################################################################################
-# Variable initialization
+# Variable and image initialization
 
 # initializes necessary image and gif files on app start
 def onAppStart(app):
@@ -26,12 +27,12 @@ def onAppStart(app):
     # source for starting screen: 
     # https://arstechnica.com/gaming/2013/11/battlefield-4-the-brutal-broken-beautiful-pinnacle-of-first-person-shooters/
     app.startbg = CMUImage(Image.open('Images/startbg.jpeg'))
-    # source for explosion: https://pngfre.com/explosion-png/ 
+    # source for explosion image: https://pngfre.com/explosion-png/ 
     app.staticImage = CMUImage(Image.open('Images/explosion.png'))
     # source for splash: 
     # https://www.vectorstock.com/royalty-free-vector/water-splash-animation-dripping-special-vector-39065396 
     app.splash = CMUImage(Image.open('Images/splash.png'))
-    # source for gif file of explosion: https://tenor.com/search/explosions-gifs 
+    # source for explosion gif file: https://tenor.com/search/explosions-gifs 
     explosionGif = Image.open('Images/explosiongif.gif')
     # setting up gif animations referenced from F23_demos animatedGifs.py
     app.spriteList = []
@@ -46,7 +47,7 @@ def onAppStart(app):
 
     return restart(app)
 
-# initializes all variable needed for game any time game is restarted
+# initializes all variable needed for game every time game is restarted
 def restart(app):
     # variables for starting screen
     app.startScreen = True
@@ -425,6 +426,7 @@ def drawShip(app, board, boardLeft):
         elif length == 5 and orientation == 'Vertical':
             drawImage(app.ship3V, shipLeft, shipTop, width = app.cellWidth, height = 5 * app.cellHeight)
 
+
 # function called to draw the ship as it is getting dragged to the cell
 def drawSelectedShip(app, x, y):
     # draw ship of length 3, ship1
@@ -506,7 +508,7 @@ def drawCell(app, row, col, boardLeft):
 
 
 ################################################################################
-# Extra command needed
+# Extra functions needed
 
 
 def onStep(app):

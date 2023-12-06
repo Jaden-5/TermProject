@@ -1,17 +1,22 @@
 import copy
 import random
 
-# Builds User's Board
+################################################################################
+# User set up
+
+
+# Class for building user's board
 class Ship:
     # https://discuss.codecademy.com/t/excellent-battleship-game-written-in-python/430605 
     # general structure of the Ship class is inspired from the source above
-    #constructor initializes size, orientation, and specific coordinates of ships
+    # constructor initializes size, orientation, and coordinates of the ship
     def __init__(self, size):
         self.size = size
         self.orientation = 'Horizontal'
         self.points = [(0,0) for i in range(size)]    
     
-    #method is called on mousepress when the player drags the ship to the cell
+    # method is called on mousepress when the player drags the ship to the cell
+    # calculates the middle point of the ship and builds the ship from the center
     def updateLocation(self, app, row, col):
         testPoints = copy.deepcopy(self.points)
         if self.size % 2 == 1:
@@ -32,10 +37,11 @@ class Ship:
                     testPoints[cell+midPoint] = (row+cell, col)
                 else:
                     return self.points
+        # after checking all points are valid, it is saved to points attribute
         self.points = testPoints
         return self.points
 
-# helper function for checking if all ships are arranged correctly
+# helper function and main function for checking if any ship intersect
 def flatten(L):
     if L == []:
         return []
@@ -66,6 +72,12 @@ ship1 = Ship(3)
 ship2 = Ship(4)
 ship3 = Ship(5)
 
+
+
+################################################################################
+# Opponent AI set up
+
+
 # Builds Opponent Board, based on the source code from below
 # https://bigmonty12.github.io/battleship 
 def buildShip(dims):
@@ -95,6 +107,7 @@ def opponentBoard(n):
         return result
     else:
         return opponentBoard(n)
+
 #checks the legality of the opponent ship arrangement    
 def isLegal(board):
     if len(board) != 5: return False
