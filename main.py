@@ -4,234 +4,103 @@ import copy
 import random
 import ast
 from PIL import Image
-# from SetUp import Ship
+from SetUp import *
+from GamePlay import *
+from SaveLoad import *
 
-# Builds User's Board
-class Ship:
-    # https://discuss.codecademy.com/t/excellent-battleship-game-written-in-python/430605 
-    # general structure of the Ship class is inspired from the source above
-    #constructor initializes size, orientation, and specific coordinates of ships
-    def __init__(self, size):
-        self.size = size
-        self.orientation = 'Horizontal'
-        self.points = [(0,0) for i in range(size)]    
-    
-    #method is called on mousepress when the player drags the ship to the cell
-    def updateLocation(self, app, row, col):
-        testPoints = copy.deepcopy(self.points)
-        if self.size % 2 == 1:
-            midPoint = self.size // 2
-            end = midPoint+1
-        elif self.size == 4:
-            midPoint = 1
-            end = midPoint+2
-        if self.orientation == 'Horizontal':
-            for cell in range(-midPoint, end):
-                if 0 <= col + cell < app.cols:
-                    testPoints[cell+midPoint] = (row, col+cell)
-                else:
-                    return self.points
-        elif self.orientation == 'Vertical':
-            for cell in range(-midPoint, end):
-                if 0 <= row + cell < app.rows:
-                    testPoints[cell+midPoint] = (row+cell, col)
-                else:
-                    return self.points
-        self.points = testPoints
-        return self.points
+################################################################################
+# Variable initialization
 
-# helper function for checking if all ships are arranged correctly
-def flatten(L):
-    if L == []:
-        return []
-    else:
-        first = L[0]
-        rest = L[1:]
-        if isinstance(first, list):
-            return flatten(first + flatten(rest))
-        else:
-            return [first] + flatten(rest)
-def isIntersecting(ship1, board):
-    search = set(flatten(board))
-    for row, col in ship1:
-        if (row, col) in search:
-            return True
-    return False
+# initializes necessary image and gif files on app start
+def onAppStart(app):
+    # loads images from the 'Images' folder
+    # source for ship images: https://www.freepik.com/free-photos-vectors/battleship 
+    app.ship1H = CMUImage(Image.open('Images/ship1H.png'))
+    app.ship1V = CMUImage(Image.open('Images/ship1V.png'))
+    app.ship2H = CMUImage(Image.open('Images/ship2H.png'))
+    app.ship2V = CMUImage(Image.open('Images/ship2V.png'))
+    app.ship3H = CMUImage(Image.open('Images/ship3H.png'))
+    app.ship3V = CMUImage(Image.open('Images/ship3V.png'))
+    # source for sea surface: https://stock.adobe.com/search?k=ocean+from+above 
+    app.seaFloor = CMUImage(Image.open('Images/floor.jpeg'))
+    # source for starting screen: 
+    # https://arstechnica.com/gaming/2013/11/battlefield-4-the-brutal-broken-beautiful-pinnacle-of-first-person-shooters/
+    app.startbg = CMUImage(Image.open('Images/startbg.jpeg'))
+    # source for explosion: https://pngfre.com/explosion-png/ 
+    app.staticImage = CMUImage(Image.open('Images/explosion.png'))
+    # source for splash: 
+    # https://www.vectorstock.com/royalty-free-vector/water-splash-animation-dripping-special-vector-39065396 
+    app.splash = CMUImage(Image.open('Images/splash.png'))
+    # source for gif file of explosion: https://tenor.com/search/explosions-gifs 
+    explosionGif = Image.open('Images/explosiongif.gif')
+    # setting up gif animations referenced from F23_demos animatedGifs.py
+    app.spriteList = []
+    for frame in range(explosionGif.n_frames):
+        explosionGif.seek(frame)
+        fr = explosionGif.resize((explosionGif.size[0]//2, explosionGif.size[1]//2))
+        fr = fr.transpose(Image.FLIP_LEFT_RIGHT)
+        fr = CMUImage(fr)
+        app.spriteList.append(fr)
+    app.spriteCounter = 0
+    app.stepsPerSecond = 10
 
-# returns the selected ship as a new instance of the Ship class
-def getShip(app, mouseX, mouseY):
-    if (500 <= mouseX <= 630) and (220 <= mouseY <= 270):
-        return ship1
-    elif (500 <= mouseX <= 630) and (290 <= mouseY <= 340):
-        return ship2
-    elif (500 <= mouseX <= 630) and (360 <= mouseY <= 410):
-        return ship3
+    return restart(app)
 
-ship1 = Ship(3)
-ship2 = Ship(4)
-ship3 = Ship(5)
+# initializes all variable needed for game any time game is restarted
+def restart(app):
+    # variables for starting screen
+    app.startScreen = True
 
-# Builds Opponent Board, based on the source code from below
-# https://bigmonty12.github.io/battleship 
-def buildShip(dims):
-    len_ship = random.randint(3, dims-1)
-    orientation = random.randint(0, 1) 
-    # Ship is horizontal if orientation is 0 and vertical if orientation is 1
-    if orientation == 0:
-        # based on the orientation randomly assigns (row, col)
-        row_ship = [random.randint(0, dims - 1)] * len_ship
-        col = random.randint(0, 4)
-        col_ship = list(range(col, col + len_ship))
-        coords = tuple(zip(row_ship, col_ship))
-    else:
-        # Same as above but with opposite orientation
-        col_ship = [random.randint(0, dims - 1)] * len_ship
-        row = random.randint(0, 4)
-        row_ship = list(range(row, row + len_ship))
-        coords = tuple(zip(row_ship, col_ship))
-    return list(coords)
+    # variables needed for the board
+    app.rows = 8
+    app.cols = 8
+    app.boardLeft1 = app.width/26 
+    app.boardTop = app.height/3.5
+    app.boardWidth = app.width/2.2
+    app.boardHeight = app.height/2.2
+    app.cellBorderWidth = 1
+    app.cellWidth = app.boardWidth / app.cols
+    app.cellHeight = app.boardHeight / app.rows
 
-# generates n opponent ships and cumulate them into a single list
-def opponentBoard(n):
-    result = []
-    for i in range(5):
-        result.append(buildShip(n))
-    if isLegal(result):
-        return result
-    else:
-        return opponentBoard(n)
-#checks the legality of the opponent ship arrangement    
-def isLegal(board):
-    if len(board) != 5: return False
-    for i in range(len(board)):
-        for j in range(len(board)):
-            if i != j:
-                comp1 = set(board[i])
-                comp2 = set(board[j])
-                if len(comp1 & comp2) >= 1:
-                    return False
-    return True
+    # variables needed for the 'set-up' stage
+    app.selectedShip = None
+    app.setUpMessage = 'Choose Ship'
+    app.setUpStage = 'shipSelection'
+    app.oppLevel = None
+    app.cx = 0
+    app.cy = 0
+    app.chosenX = 0
+    app.chosenY = 0
 
-
-
-#functions Used for Game Plays
-def makeMove(app, x, y):
-    if app.userTurn:
-        return getCell(app, x, y)
-    elif app.oppTurn:
-        if app.oppLevel == 'standard':
-            row = random.randint(0, 7)
-            col = random.randint(0, 7)
-        elif app.oppLevel == 'intermediate':
-            if app.oppGuesses == []:
-                row = random.randint(0, 7)
-                col = random.randint(0, 7)
-            else:
-                # guesses are based on cells with high chance of ships being lcoated
-                goodRow, goodCol = app.oppGuesses[-1]
-                moveOptions = smartTarget(app, goodRow, goodCol)
-                if moveOptions != []:
-                    row, col = moveOptions.pop()
-                else:
-                    row = random.randint(0, 7)
-                    col = random.randint(0, 7)
-                    if (row,col) in app.wrongGuessesOpp or (row,col) in app.oppGuesses:
-                        # if the guess was already made, it recursively generates another guess
-                        return makeMove(app, x, y)
-        elif app.oppLevel == 'advanced':
-            if app.oppGuesses == []:
-                # in smarterRandom, the guesses are generated randomly for quadrant at a time
-                row, col = smarterRandom(app)
-            elif (len(app.oppGuesses) > 1 and (app.oppGuesses[-1][0] == app.oppGuesses[-2][0] 
-                or app.oppGuesses[-1][1] == app.oppGuesses[-2][1])):
-                pastRow, pastCol = app.oppGuesses[-2]
-                goodRow, goodCol = app.oppGuesses[-1]
-                # compares the two cells that has been hit correctly
-                moveOptions = trackSameShip(app, pastRow, pastCol, goodRow, goodCol)
-                if moveOptions != []:
-                    row, col = moveOptions.pop()
-                else:
-                    row, col = smarterRandom(app)
-                    if (row,col) in app.wrongGuessesOpp or (row,col) in app.oppGuesses:
-                        return makeMove(app, x, y)
-            else:
-                # first tries adjacent cells
-                goodRow, goodCol = app.oppGuesses[-1]
-                moveOptions = smartTarget(app, goodRow, goodCol)
-                if moveOptions != []:
-                    row, col = moveOptions.pop()
-                else:
-                    row, col = smarterRandom(app)
-                    if (row,col) in app.wrongGuessesOpp or (row,col) in app.oppGuesses:
-                        return makeMove(app, x, y)              
-        return (row,col)
-
-# used for advanced guesses; returns coordinates of cells adjacent to 'correct' hits
-# https://towardsdatascience.com/coding-an-intelligent-battleship-agent-bf0064a4b319  
-def smartTarget(app, guessRow, guessCol):
-    targetOptions = []
-    potentialTargets = [(guessRow + 1, guessCol), (guessRow, guessCol + 1),
-                           (guessRow - 1, guessCol), (guessRow, guessCol - 1)]
-    for row, col in potentialTargets:
-        # ensures that all potential guesses are within the boundary
-        if ((0 <= row <= 7) and (0 <= col <= 7) and (row,col) not in app.wrongGuessesOpp 
-            and (row,col) not in app.oppGuesses):
-            targetOptions.append((row, col))
-    return targetOptions
-
-def trackSameShip(app, row1, col1, row2, col2):
-    # based on two correct hits, guesses the orientation of the ship
-    if row1 == row2:
-        colLeft = min(col1, col2) - 1
-        colRight = max(col1, col2) + 1
-        result = [(row1, colLeft), (row1, colRight)]
-    elif col1 == col2:
-        rowUp = min(row1, row2) - 1
-        rowDown = max(row1, row2) + 1
-        result = [(rowUp, col1), (rowDown, col1)]
-    # returns potential points along the same orientation, excluding ones already tried
-    editedResult = []
-    i = 0
-    while i < len(result):
-        point = result[i]
-        if point not in app.wrongGuessesOpp and point not in app.oppGuesses:
-            editedResult.append(point)
-        i += 1
-    return editedResult
-
-def smarterRandom(app):
-    # whenever the opponent needs a new completely random guess, it goes around each quadrant 
-    # and returns fairly scattered set of guesses from different quadrant each time
-    quadrant = (len(app.wrongGuessesOpp))%4
-    if quadrant == 0:
-        row = random.randint(0, 3)
-        col = random.randint(0,3)  
-    elif quadrant == 1:
-        row = random.randint(0, 3)
-        col = random.randint(4, 7)  
-    elif quadrant == 2:
-        row = random.randint(4, 7) 
-        col = random.randint(0, 3)
-    elif quadrant == 3:
-        row = random.randint(4, 7) 
-        col = random.randint(4, 7)
-    return row, col
-
-def isDestroyed(row, col, board):
-    for i in range(len(board)):
-        ship = board[i]
-        if (row, col) in ship:
-            return (True, i)
-    return (False, 0)
-def completelySunk(board):
-    if [] in board:
-        board.remove([])
-    return board
+    # variables needed for playing screen
+    app.message = "Let's Destroy!"
+    app.userTurn = True
+    app.oppTurn = False
+    app.userGuesses = []
+    app.oppGuesses = []
+    app.wrongGuessesUser = []
+    app.wrongGuessesOpp = []
+    app.setUpScreen = False
+    app.playingScreen = False
+    app.gameOver = False
+    # Parameters for the user's board
+    app.boardLeft2 = app.boardLeft1 + app.boardWidth + 20 
+    app.boardWidth2 = app.boardWidth
+    app.boardHeight2 = app.boardHeight
+    app.board = []
+    app.drawingUser = []
+    #opponent's board
+    app.opponentBoard = opponentBoard(5)
+    app.drawingOpp = copy.deepcopy(app.opponentBoard)
+    app.solution = False
    
+
+################################################################################
+# Mouse Mechanism
 
 def onMousePress(app, mouseX, mouseY):
     if app.startScreen:
-        
+
         # buttons used for selecting the level of difficulty
         if (50 <= mouseX <= 250) and (app.height*14.2/16 <= mouseY <= ((app.height*14.2/16)+50)):
             app.oppLevel = 'standard'
@@ -257,7 +126,7 @@ def onMousePress(app, mouseX, mouseY):
 
 
     if app.setUpScreen:
-        
+
         # first lets the user select one out of ships of different length
         if app.setUpStage == 'shipSelection':
             app.selectedShip = getShip(app, mouseX, mouseY)
@@ -280,6 +149,7 @@ def onMousePress(app, mouseX, mouseY):
                     
 
     if app.playingScreen:
+        
         # saves progress of the current game
         if (31 <= mouseX <= 81) and (app.height/13 <= mouseY <= (app.height/13)+20):
             app.message = "Progress Saved!"
@@ -293,7 +163,7 @@ def onMousePress(app, mouseX, mouseY):
                 file.truncate()
 
         # receives (row,col) from user and evaluates if the attack was successful
-        # displays message indicating whether the attack was successful
+        # removes all 'sunk' points and the whole ship if the list is empty
         if (not app.gameOver and (app.boardLeft1 <= mouseX < app.boardLeft1+app.boardWidth) 
             and (app.boardTop <= mouseY < app.boardTop+app.boardHeight) and app.userTurn):
             row, col = makeMove(app, mouseX, mouseY) 
@@ -331,6 +201,7 @@ def onMousePress(app, mouseX, mouseY):
                 app.oppTurn = not app.oppTurn
                 return app.opponentBoard if app.userTurn else app.board 
 
+
 def onMouseRelease(app, mouseX, mouseY):
     if app.setUpStage == 'locationSelection':
         # as the mouse is released, it assumes that point as the 'chosen' cell
@@ -357,219 +228,19 @@ def onMouseRelease(app, mouseX, mouseY):
                 app.drawingUser = copy.deepcopy(app.board)
 
 
-def onAppStart(app):
-    # loads images from the 'Images' folder
-    # source for ship images: https://www.freepik.com/free-photos-vectors/battleship 
-    app.ship1H = CMUImage(Image.open('Images/ship1H.png'))
-    app.ship1V = CMUImage(Image.open('Images/ship1V.png'))
-    app.ship2H = CMUImage(Image.open('Images/ship2H.png'))
-    app.ship2V = CMUImage(Image.open('Images/ship2V.png'))
-    app.ship3H = CMUImage(Image.open('Images/ship3H.png'))
-    app.ship3V = CMUImage(Image.open('Images/ship3V.png'))
-    # source for sea surface: https://stock.adobe.com/search?k=ocean+from+above 
-    app.seaFloor = CMUImage(Image.open('Images/floor.jpeg'))
-    # source for starting screen: 
-    # https://arstechnica.com/gaming/2013/11/battlefield-4-the-brutal-broken-beautiful-pinnacle-of-first-person-shooters/
-    app.startbg = CMUImage(Image.open('Images/startbg.jpeg'))
-    # source for explosion: https://pngfre.com/explosion-png/ 
-    app.staticImage = CMUImage(Image.open('Images/explosion.png'))
-    # source for splash: 
-    # https://www.vectorstock.com/royalty-free-vector/water-splash-animation-dripping-special-vector-39065396 
-    app.splash = CMUImage(Image.open('Images/splash.png'))
-    # source for gif file of explosion: https://tenor.com/search/explosions-gifs 
-    explosionGif = Image.open('Images/explosiongif.gif')
-    # setting up gif animations referenced from F23_demos animatedGifs.py
-    app.spriteList = []
-    for frame in range(explosionGif.n_frames):
-        explosionGif.seek(frame)
-        fr = explosionGif.resize((explosionGif.size[0]//2, explosionGif.size[1]//2))
-        fr = fr.transpose(Image.FLIP_LEFT_RIGHT)
-        fr = CMUImage(fr)
-        app.spriteList.append(fr)
-    app.spriteCounter = 0
-    app.stepsPerSecond = 10
-
-    return restart(app)
-
-def restart(app):
-    # variables for starting screen
-    app.startScreen = True
-
-    # variables needed for the board
-    app.rows = 8
-    app.cols = 8
-    app.boardLeft1 = app.width/26 
-    app.boardTop = app.height/3.5
-    app.boardWidth = app.width/2.2
-    app.boardHeight = app.height/2.2
-    app.cellBorderWidth = 1
-    app.cellWidth = app.boardWidth / app.cols
-    app.cellHeight = app.boardHeight / app.rows
-
-    # variables needed for playing screen
-    app.message = "Let's Destroy!"
-    app.userTurn = True
-    app.oppTurn = False
-    app.userGuesses = []
-    app.oppGuesses = []
-    app.wrongGuessesUser = []
-    app.wrongGuessesOpp = []
-    app.setUpScreen = False
-    app.playingScreen = False
-    app.gameOver = False
-    # Parameters for the user's board
-    app.boardLeft2 = app.boardLeft1 + app.boardWidth + 20 
-    app.boardWidth2 = app.boardWidth
-    app.boardHeight2 = app.boardHeight
-    app.board = []
-    app.drawingUser = []
-    #opponent's board
-    app.opponentBoard = opponentBoard(5)
-    app.drawingOpp = copy.deepcopy(app.opponentBoard)
-    app.solution = False
-
-    # variables needed for the 'set-up' stage
-    app.selectedShip = None
-    app.setUpMessage = 'Choose Ship'
-    app.setUpStage = 'shipSelection'
-    app.oppLevel = None
-    app.cx = 0
-    app.cy = 0
-    app.chosenX = 0
-    app.chosenY = 0
-
-# https://www.guru99.com/reading-and-writing-files-in-python.html referenced for saving and loading game 
-# opens the txt file in writing mode and writes all relevant variables as of current status
-def saveGame(app):
-    f = open("saveProgress.txt","w+")
-    f.write(str(app.board))
-    f.write('\n')
-    f.write(str(app.opponentBoard))
-    f.write('\n')
-    f.write(str(app.wrongGuessesUser))
-    f.write('\n')
-    f.write(str(app.wrongGuessesOpp))
-    f.write('\n')
-    f.write(str(app.userGuesses))
-    f.write('\n')
-    f.write(str(app.oppGuesses))
-    f.write('\n')
-    f.write(str(app.drawingUser))
-    f.write('\n')
-    f.write(str(app.drawingOpp))
-    f.write('\n')
-    f.write(str(app.oppLevel))
-    # userTurn is saved as 1 and opponentTurn is saved as 0
-    if app.userTurn: i = 1
-    else: i = 0
-    f.write('\n')
-    f.write(str(i))
-    f.close()
-
-def loadGame(app):
-    # opens the txt file in reading mode and assigns all data to relevant variables
-    # https://codedamn.com/news/python/how-to-convert-a-string-to-a-list-in-python 
-    # referenced to look for other ways to convert a string to a list as list() would not work
-    with open("saveProgress.txt","r+") as f:
-        fileString = f.read() 
-        app.board = ast.literal_eval(fileString.splitlines()[0])
-        app.opponentBoard = ast.literal_eval(fileString.splitlines()[1])
-        app.wrongGuessesUser = ast.literal_eval(fileString.splitlines()[2])
-        app.wrongGuessesOpp = ast.literal_eval(fileString.splitlines()[3])
-        app.userGuesses = ast.literal_eval(fileString.splitlines()[4])
-        app.oppGuesses = ast.literal_eval(fileString.splitlines()[5])
-        app.drawingUser = ast.literal_eval(fileString.splitlines()[6])
-        app.drawingOpp = ast.literal_eval(fileString.splitlines()[7])
-        app.oppLevel = fileString.splitlines()[8]
-        i = fileString.splitlines()[9]
-        if i == '1': app.userTurn, app.oppTurn = True, False
-        elif i == '0': app.userTurn, app.oppTurn = False, True
+def onMouseDrag(app, mouseX, mouseY):
+    if app.setUpStage == 'locationSelection':
+        app.cx = mouseX
+        app.cy = mouseY
 
 
-def drawShip(app, board, boardLeft):
-    shipPositions = []
-    # first figures out given ship's orientation
-    for ship in board:
-        row, col = ship[0]
-        testx, testy = ship[1]
-        if row == testx:
-            orientation = 'Horizontal' 
-        elif col == testy:
-            orientation = 'Vertical'
-        shipPositions.append((orientation, len(ship), row, col)) 
-    
-    for orientation, length, shipRow, shipCol in shipPositions:
-        # adjusts the position based on the board it is drawing on
-        if app.playingScreen:
-            if boardLeft == app.boardLeft1:
-                shipLeft, shipTop = getCellLeftTop(app, shipRow, shipCol, boardLeft)
-            elif boardLeft == app.boardLeft2:
-                shipLeft, shipTop = getCellLeftTop(app, shipRow, shipCol, boardLeft)
-        elif app.setUpScreen: 
-            shipLeft, shipTop = getCellLeftTop(app, shipRow, shipCol, app.boardLeft1)
+################################################################################
+# Graphical Components     
 
-        # draw ship of length 3
-        if length == 3 and orientation == 'Horizontal':
-            drawImage(app.ship1H, shipLeft, shipTop, width = 3*app.cellWidth, height = app.cellHeight)
-        elif length == 3 and orientation == 'Vertical':
-            drawImage(app.ship1V, shipLeft, shipTop, width = app.cellWidth, height = 3 * app.cellHeight)
-        
-        # draw ship of length 4
-        elif length == 4 and orientation == 'Horizontal':
-            drawImage(app.ship2H, shipLeft, shipTop, width = 4*app.cellWidth, height = app.cellHeight)
-        elif length == 4 and orientation == 'Vertical':
-            drawImage(app.ship2V, shipLeft, shipTop, width = app.cellWidth, height = 4 * app.cellHeight)
-       
-        # draw ship of length 5
-        elif length == 5 and orientation == 'Horizontal':
-            drawImage(app.ship3H, shipLeft, shipTop, width = 5*app.cellWidth, height = app.cellHeight)
-        elif length == 5 and orientation == 'Vertical':
-            drawImage(app.ship3V, shipLeft, shipTop, width = app.cellWidth, height = 5 * app.cellHeight)
-
-def drawSelectedShip(app, x, y):
-    # draw ship of length 3, ship1
-    if app.selectedShip == ship1 and app.selectedShip.orientation == 'Horizontal':
-        drawImage(app.ship1H, x, y, width = 3*app.cellWidth, height = app.cellHeight, align='center')
-    elif app.selectedShip == ship1 and app.selectedShip.orientation == 'Vertical':
-        drawImage(app.ship1V, x, y, width = app.cellWidth, height = 3 * app.cellHeight, align='center')
-    
-    # draw ship of length 4, ship2
-    elif app.selectedShip == ship2 and app.selectedShip.orientation == 'Horizontal':
-        drawImage(app.ship2H, x, y, width = 4*app.cellWidth, height = app.cellHeight, align='center')
-    elif app.selectedShip == ship2 and app.selectedShip.orientation == 'Vertical':
-        drawImage(app.ship2V, x, y, width = app.cellWidth, height = 4 * app.cellHeight, align='center')
-    
-    # draw ship of length 5, ship3
-    elif app.selectedShip == ship3 and app.selectedShip.orientation == 'Horizontal':
-        drawImage(app.ship3H, x, y, width = 5*app.cellWidth, height = app.cellHeight, align='center')
-    elif app.selectedShip == ship3 and app.selectedShip.orientation == 'Vertical':
-        drawImage(app.ship3V, x, y, width = app.cellWidth, height = 5 * app.cellHeight, align='center')
-
-# illustrating special effects 
-# utilizing gif animations referenced from F23_demos animatedGifs.py
-def drawExplosion(app, board, boardLeft):
-    if boardLeft == app.boardLeft1: check=app.userGuesses 
-    else: check=app.oppGuesses
-    for ship in board:
-        for (row, col) in ship:
-            if (row, col) in check:
-                cellLeft, cellTop = getCellLeftTop(app, row, col, boardLeft)
-                drawImage(app.spriteList[app.spriteCounter], cellLeft, cellTop, 
-                              width=app.cellWidth, height=app.cellHeight)
-def onStep(app):
-    app.spriteCounter = (app.spriteCounter + 1) % len(app.spriteList)
-
-def drawSplash(app, errors, correct, boardLeft):
-    errors = set(errors)
-    correct = set(correct)
-    for row in range(8):
-        for col in range(8):
-            if (row, col) in errors and (row, col) not in correct:
-                cellLeft, cellTop = getCellLeftTop(app, row, col, boardLeft)
-                drawImage(app.splash, cellLeft, cellTop, width = app.cellWidth, height = app.cellHeight)
 
 def redrawAll(app):
     if app.startScreen:
+
         # image
         drawRect(0,0,app.width,app.height)
         drawImage(app.startbg, 0,0, width=app.width, height=app.height/1.15)
@@ -583,9 +254,12 @@ def redrawAll(app):
         instructions1 = 'Emergency! 5 enemy ships are approaching the coast!'
         instructions2 = 'Protect your 5 ships with safe arrangement and' 
         instructions3 = 'SINK all opponent ships!'
-        drawLabel(instructions1, app.width/2, app.height/1.47, fill='white', bold=True, size = 20, font='monospace')
-        drawLabel(instructions2, app.width/2, app.height/1.47 + 40, fill='white', bold=True, size = 20, font='monospace')
-        drawLabel(instructions3, app.width/2,  app.height/1.47 + 80, fill='white', bold=True, size = 20, font='monospace')
+        drawLabel(instructions1, app.width/2, app.height/1.47, fill='white', bold=True, 
+                    size = 20, font='monospace')
+        drawLabel(instructions2, app.width/2, app.height/1.47 + 40, fill='white', bold=True, 
+                    size = 20, font='monospace')
+        drawLabel(instructions3, app.width/2,  app.height/1.47 + 80, fill='white', bold=True, 
+                    size = 20, font='monospace')
  
         # buttons
         drawRect(50, app.height*14.2/16, 200, 50, fill='lightGray')
@@ -601,6 +275,7 @@ def redrawAll(app):
 
 
     if app.setUpScreen:
+
         # background image
         drawImage(app.seaFloor, 0, 0, width=app.width, height=app.height)
 
@@ -633,7 +308,7 @@ def redrawAll(app):
             drawLabel(f'CLICK and DRAG the ship to place it!', app.width/2, 
                     app.height/1.2, bold=True, size=20, fill='black')
         
-        # button for moving onto the set up screen
+        # button for moving onto the play screen
         if app.setUpStage == 'complete':
             drawRect(app.width/2, app.height/1.2, 70, 30, fill=None, border='black', align='center')
             drawLabel("Play!", app.width/2, app.height/1.2, bold=True, size=15)
@@ -642,11 +317,12 @@ def redrawAll(app):
             drawRect(app.width/2, app.height/1.2, 70, 30, fill=None, border='black', align='center')
             drawLabel("Rotate", app.width/2, app.height/1.2, bold=True, size=15)
        
-        # draws images of the ship
+        # draws images of the ship as they are getting set up
         drawShip(app, app.board, app.boardLeft1)
 
 
     if app.playingScreen:
+
         # draws background image
         drawImage(app.seaFloor, 0, 0, width=app.width, height=app.height)  
         
@@ -676,7 +352,6 @@ def redrawAll(app):
         drawExplosion(app, app.drawingUser, app.boardLeft2)
         drawSplash(app, app.wrongGuessesUser, app.userGuesses, app.boardLeft1)
         drawSplash(app, app.wrongGuessesOpp, app.oppGuesses, app.boardLeft2)
-        
         
         # button for next turn
         if app.oppTurn:
@@ -708,6 +383,94 @@ def redrawAll(app):
                 drawLabel("YOU WIN!", app.width/2, app.height/2, size=50, bold=True)
                 drawLabel("Press r to restart!",app.width/2,app.height*9/16,size = 20, bold=True)
                 drawLabel("Press s to see solution",app.width/2,app.height*10/16,size = 20, bold=True)
+
+
+def drawShip(app, board, boardLeft):
+    shipPositions = []
+    # first figures out given ship's orientation
+    for ship in board:
+        row, col = ship[0]
+        testx, testy = ship[1]
+        if row == testx:
+            orientation = 'Horizontal' 
+        elif col == testy:
+            orientation = 'Vertical'
+        shipPositions.append((orientation, len(ship), row, col)) 
+    
+    for orientation, length, shipRow, shipCol in shipPositions:
+        # adjusts the reference position based on the board it is drawing on
+        if app.playingScreen:
+            if boardLeft == app.boardLeft1:
+                shipLeft, shipTop = getCellLeftTop(app, shipRow, shipCol, boardLeft)
+            elif boardLeft == app.boardLeft2:
+                shipLeft, shipTop = getCellLeftTop(app, shipRow, shipCol, boardLeft)
+        elif app.setUpScreen: 
+            shipLeft, shipTop = getCellLeftTop(app, shipRow, shipCol, app.boardLeft1)
+
+        # draw ship of length 3
+        if length == 3 and orientation == 'Horizontal':
+            drawImage(app.ship1H, shipLeft, shipTop, width = 3*app.cellWidth, height = app.cellHeight)
+        elif length == 3 and orientation == 'Vertical':
+            drawImage(app.ship1V, shipLeft, shipTop, width = app.cellWidth, height = 3 * app.cellHeight)
+        
+        # draw ship of length 4
+        elif length == 4 and orientation == 'Horizontal':
+            drawImage(app.ship2H, shipLeft, shipTop, width = 4*app.cellWidth, height = app.cellHeight)
+        elif length == 4 and orientation == 'Vertical':
+            drawImage(app.ship2V, shipLeft, shipTop, width = app.cellWidth, height = 4 * app.cellHeight)
+       
+        # draw ship of length 5
+        elif length == 5 and orientation == 'Horizontal':
+            drawImage(app.ship3H, shipLeft, shipTop, width = 5*app.cellWidth, height = app.cellHeight)
+        elif length == 5 and orientation == 'Vertical':
+            drawImage(app.ship3V, shipLeft, shipTop, width = app.cellWidth, height = 5 * app.cellHeight)
+
+# function called to draw the ship as it is getting dragged to the cell
+def drawSelectedShip(app, x, y):
+    # draw ship of length 3, ship1
+    if app.selectedShip == ship1 and app.selectedShip.orientation == 'Horizontal':
+        drawImage(app.ship1H, x, y, width = 3*app.cellWidth, height = app.cellHeight, align='center')
+    elif app.selectedShip == ship1 and app.selectedShip.orientation == 'Vertical':
+        drawImage(app.ship1V, x, y, width = app.cellWidth, height = 3 * app.cellHeight, align='center')
+    
+    # draw ship of length 4, ship2
+    elif app.selectedShip == ship2 and app.selectedShip.orientation == 'Horizontal':
+        drawImage(app.ship2H, x, y, width = 4*app.cellWidth, height = app.cellHeight, align='center')
+    elif app.selectedShip == ship2 and app.selectedShip.orientation == 'Vertical':
+        drawImage(app.ship2V, x, y, width = app.cellWidth, height = 4 * app.cellHeight, align='center')
+    
+    # draw ship of length 5, ship3
+    elif app.selectedShip == ship3 and app.selectedShip.orientation == 'Horizontal':
+        drawImage(app.ship3H, x, y, width = 5*app.cellWidth, height = app.cellHeight, align='center')
+    elif app.selectedShip == ship3 and app.selectedShip.orientation == 'Vertical':
+        drawImage(app.ship3V, x, y, width = app.cellWidth, height = 5 * app.cellHeight, align='center')
+
+
+# illustrating special effects 
+# utilizing gif animations referenced from F23_demos animatedGifs.py
+def drawExplosion(app, board, boardLeft):
+    if boardLeft == app.boardLeft1: check=app.userGuesses 
+    else: check=app.oppGuesses
+    for ship in board:
+        for (row, col) in ship:
+            if (row, col) in check:
+                cellLeft, cellTop = getCellLeftTop(app, row, col, boardLeft)
+                drawImage(app.spriteList[app.spriteCounter], cellLeft, cellTop, 
+                              width=app.cellWidth, height=app.cellHeight)
+
+def drawSplash(app, errors, correct, boardLeft):
+    errors = set(errors)
+    correct = set(correct)
+    for row in range(8):
+        for col in range(8):
+            if (row, col) in errors and (row, col) not in correct:
+                cellLeft, cellTop = getCellLeftTop(app, row, col, boardLeft)
+                drawImage(app.splash, cellLeft, cellTop, width = app.cellWidth, height = app.cellHeight)
+
+def lengthIllustrater(n, left, top, width, color):
+    for i in range(n):
+        drawRect(left + width*i, top, width, 50, fill=None, border=color)
+
 
 # illustrating boards for both set-up and playing screen
 def drawBoard(app, boardLeft):
@@ -741,37 +504,13 @@ def drawCell(app, row, col, boardLeft):
                 fill=color, border='black',
                 borderWidth=app.cellBorderWidth)
 
-#helper functions needed for board and cell set up 
-def getCellLeftTop(app, row, col, boardLeft):
-    cellWidth, cellHeight = getCellSize(app)
-    cellLeft = boardLeft + col * cellWidth
-    cellTop = app.boardTop + row * cellHeight
-    return (cellLeft, cellTop)
 
-def getCellSize(app):
-    cellWidth = app.boardWidth / app.cols
-    cellHeight = app.boardHeight / app.rows
-    return (cellWidth, cellHeight)
+################################################################################
+# Extra command needed
 
-def getCell(app, x, y):
-    dx = x - app.boardLeft1
-    dy = y - app.boardTop
-    cellWidth, cellHeight = getCellSize(app)
-    row = math.floor(dy / cellHeight)
-    col = math.floor(dx / cellWidth)
-    if (0 <= row < app.rows) and (0 <= col < app.cols):
-        return (row, col)
-    else:
-        return None
-    
-def lengthIllustrater(n, left, top, width, color):
-    for i in range(n):
-        drawRect(left + width*i, top, width, 50, fill=None, border=color)
 
-def onMouseDrag(app, mouseX, mouseY):
-    if app.setUpStage == 'locationSelection':
-        app.cx = mouseX
-        app.cy = mouseY
+def onStep(app):
+    app.spriteCounter = (app.spriteCounter + 1) % len(app.spriteList)
 
 def onKeyPress(app, key):
     if key == 'r':
